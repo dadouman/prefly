@@ -72,7 +72,7 @@ function estimateTotal(n) {
 function parseInput(text) {
   const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return [];
-  return lines.flatMap(l => l.split(',').map(s => s.trim()).filter(Boolean));
+  return lines.map(l => l.replace(/^"|"$/g, '')).filter(Boolean);
 }
 
 function exportCSV(items) {
