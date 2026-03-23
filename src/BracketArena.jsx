@@ -378,8 +378,13 @@ export default function BracketArena({ items, format, imageMap, onFinish, onRese
           <div className="bracket-trophy-glow" />
           <div className="bracket-champion-ornament">✦ ✦ ✦</div>
           <p className="bracket-champion-subtitle">Le champion incontesté</p>
+          {imageMap?.get(champion) && (
+            <div className="bracket-champion-img-wrap">
+              <img src={imageMap.get(champion)} alt="" className="bracket-champion-img" />
+            </div>
+          )}
           <h1 className="bracket-champion-title">
-            <ItemLabel item={champion} format={format} imageUrl={imageMap?.get(champion)} />
+            <ItemLabel item={champion} format={format} />
           </h1>
           <div className="bracket-champion-crown">👑</div>
           <div className="bracket-champion-stats">
@@ -443,8 +448,13 @@ export default function BracketArena({ items, format, imageMap, onFinish, onRese
               className={`bracket-fighter-compact left${chosen === "a" ? " bracket-victor" : chosen === "b" ? " bracket-fallen" : ""}`}
               onClick={() => handleChoice("a")}
             >
+              {imageMap?.get(currentMatchData.a) && (
+                <div className="bracket-fighter-img-wrap">
+                  <img src={imageMap.get(currentMatchData.a)} alt="" className="bracket-fighter-img" />
+                </div>
+              )}
               <span className="bracket-fighter-compact-text">
-                <ItemLabel item={currentMatchData.a} format={format} imageUrl={imageMap?.get(currentMatchData.a)} />
+                <ItemLabel item={currentMatchData.a} format={format} />
               </span>
               <span className="bracket-fighter-compact-hint">←</span>
             </button>
@@ -453,8 +463,13 @@ export default function BracketArena({ items, format, imageMap, onFinish, onRese
               className={`bracket-fighter-compact right${chosen === "b" ? " bracket-victor" : chosen === "a" ? " bracket-fallen" : ""}`}
               onClick={() => handleChoice("b")}
             >
+              {imageMap?.get(currentMatchData.b) && (
+                <div className="bracket-fighter-img-wrap">
+                  <img src={imageMap.get(currentMatchData.b)} alt="" className="bracket-fighter-img" />
+                </div>
+              )}
               <span className="bracket-fighter-compact-text">
-                <ItemLabel item={currentMatchData.b} format={format} imageUrl={imageMap?.get(currentMatchData.b)} />
+                <ItemLabel item={currentMatchData.b} format={format} />
               </span>
               <span className="bracket-fighter-compact-hint">→</span>
             </button>

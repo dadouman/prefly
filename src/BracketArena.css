@@ -159,8 +159,9 @@
   position: relative;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   min-height: 56px;
 }
 
@@ -719,6 +720,80 @@
 }
 
 /* =====================================================================
+   FIGHTER & CHAMPION IMAGES — Prominent display
+   ===================================================================== */
+
+/* Duel fighter image */
+.bracket-fighter-img-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.bracket-fighter-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid rgba(184, 134, 11, 0.2);
+  background: rgba(184, 134, 11, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bracket-fighter-compact:hover .bracket-fighter-img {
+  border-color: var(--blood-bright);
+  box-shadow: 0 6px 24px rgba(192, 57, 43, 0.18);
+  transform: scale(1.04);
+}
+
+.bracket-fighter-compact.bracket-victor .bracket-fighter-img {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px rgba(184, 134, 11, 0.35), 0 8px 30px rgba(184, 134, 11, 0.15);
+}
+
+.bracket-fighter-compact.bracket-fallen .bracket-fighter-img {
+  filter: grayscale(0.7);
+  opacity: 0.4;
+}
+
+/* Champion image — large & glorious */
+.bracket-champion-img-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.2rem;
+}
+
+.bracket-champion-img {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  box-shadow:
+    0 0 30px rgba(184, 134, 11, 0.3),
+    0 0 60px rgba(184, 134, 11, 0.15),
+    0 8px 32px rgba(0, 0, 0, 0.15);
+  animation: champion-img-appear 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes champion-img-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-10deg);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08) rotate(2deg);
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* =====================================================================
    RESPONSIVE
    ===================================================================== */
 
@@ -751,5 +826,16 @@
 
   .bracket-name {
     font-size: 0.62rem;
+  }
+
+  .bracket-fighter-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+  }
+
+  .bracket-champion-img {
+    width: 110px;
+    height: 110px;
   }
 }

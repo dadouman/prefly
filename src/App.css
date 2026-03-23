@@ -1048,26 +1048,12 @@ textarea::placeholder {
   border-radius: 3px;
 }
 
-.bracket-fighter-compact .item-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-}
-
-.bracket-fighter-compact .item-with-thumb {
-  flex-direction: column;
-  align-items: center;
+.bracket-name .item-with-thumb {
+  gap: 0.3rem;
 }
 
 .bracket-champion-name .item-thumb {
-  width: 64px;
-  height: 64px;
-  border-radius: 8px;
-}
-
-.bracket-champion-title .item-thumb {
-  width: 80px;
-  height: 80px;
-  border-radius: 10px;
-  border: 2px solid var(--gold);
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
 }
