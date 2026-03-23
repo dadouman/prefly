@@ -36,15 +36,16 @@ function seedBracket(items) {
 }
 
 // Build standard tournament seeding order for n slots (power of 2)
-// Ensures seed 1 vs seed n, seed 2 vs seed n-1, etc.
+// Uses mirror-based placement so BYEs (last seeds) are spread across the bracket
+// and never paired together.
 function buildSeedOrder(n) {
   if (n === 1) return [0];
   if (n === 2) return [0, 1];
-  const half = buildSeedOrder(n / 2);
+  const prev = buildSeedOrder(n / 2);
   const result = [];
-  for (const pos of half) {
-    result.push(pos * 2);
-    result.push(pos * 2 + 1);
+  for (const pos of prev) {
+    result.push(pos);           // top of each pair keeps position
+    result.push(n - 1 - pos);   // opponent placed at mirror position
   }
   return result;
 }
@@ -88,6 +89,8 @@ function propagate(rounds) {
   let changed = true;
   while (changed) {
     changed = false;
+
+    // Push winners from resolved matches to next round
     for (let r = 0; r < rounds.length - 1; r++) {
       for (let m = 0; m < rounds[r].length; m++) {
         const match = rounds[r][m];
@@ -103,38 +106,47 @@ function propagate(rounds) {
         }
       }
     }
-    // Auto-resolve rounds where one side got a BYE propagation
-    // (both source matches resolved, but one side is null because of BYE chain)
+
+    // Auto-advance matches where one side can never be filled (double-BYE propagation)
     for (let r = 1; r < rounds.length; r++) {
       for (let m = 0; m < rounds[r].length; m++) {
         const match = rounds[r][m];
         if (match.winner !== null) continue;
 
-        // Check if both source matches are resolved
         const srcA = rounds[r - 1][m * 2];
         const srcB = rounds[r - 1][m * 2 + 1];
         if (!srcA || !srcB) continue;
 
-        if (srcA.winner !== null && srcB.winner !== null) {
-          match.a = srcA.winner;
-          match.b = srcB.winner;
-          // Don't auto-resolve — needs user choice (unless one is null from double-BYE)
-        }
+        // A source is "done" if it has a winner OR is a resolved BYE (even with null winner)
+        const aDone = srcA.winner !== null || srcA.isBye;
+        const bDone = srcB.winner !== null || srcB.isBye;
+        if (!aDone || !bDone) continue;
 
-        // If one side is filled and the other can never be filled (all sources resolved)
-        if (match.a !== null && match.b === null && srcB?.winner === null && allSourcesResolved(rounds, r, m * 2 + 1)) {
-          // Shouldn't happen in proper bracket, but handle gracefully
+        const aWinner = srcA.winner;
+        const bWinner = srcB.winner;
+
+        if (aWinner !== null && match.a !== aWinner) { match.a = aWinner; changed = true; }
+        if (bWinner !== null && match.b !== bWinner) { match.b = bWinner; changed = true; }
+
+        // Auto-advance if only one real competitor exists
+        if (aWinner !== null && bWinner === null) {
+          match.winner = aWinner;
+          match.isBye = true;
+          changed = true;
+        } else if (aWinner === null && bWinner !== null) {
+          match.winner = bWinner;
+          match.isBye = true;
+          changed = true;
+        } else if (aWinner === null && bWinner === null) {
+          // Both sides empty (cascading double BYE) — mark so upstream can detect
+          if (!match.isBye) {
+            match.isBye = true;
+            changed = true;
+          }
         }
       }
     }
   }
-}
-
-function allSourcesResolved(rounds, roundIdx, matchIdx) {
-  if (roundIdx === 0) return true;
-  const match = rounds[roundIdx]?.[matchIdx];
-  if (!match) return true;
-  return match.winner !== null;
 }
 
 function findCurrentMatch(rounds) {
