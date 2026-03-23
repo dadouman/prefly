@@ -1,0 +1,755 @@
+/* =====================================================================
+   BRACKET ARENA — Phase Finale à Élimination Directe
+   Du sang, des larmes, et un champion.
+   ===================================================================== */
+
+:root {
+  --blood: #8b0000;
+  --blood-bright: #c0392b;
+  --blood-glow: rgba(192, 57, 43, 0.15);
+  --blood-dim: rgba(139, 0, 0, 0.3);
+  --flame: #e67e22;
+  --flame-bright: #f39c12;
+}
+
+/* ─── ARENA WRAPPER ─── */
+.bracket-arena {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fade-in 0.45s ease-out both;
+}
+
+.bracket-arena.bracket-shake {
+  animation: screen-shake 0.4s ease-out;
+}
+
+@keyframes screen-shake {
+  0%   { transform: translate(0, 0) rotate(0); }
+  10%  { transform: translate(-4px, 2px) rotate(-0.5deg); }
+  20%  { transform: translate(4px, -2px) rotate(0.5deg); }
+  30%  { transform: translate(-3px, 1px) rotate(-0.3deg); }
+  40%  { transform: translate(3px, -1px) rotate(0.3deg); }
+  50%  { transform: translate(-2px, 1px) rotate(-0.2deg); }
+  60%  { transform: translate(2px, 0) rotate(0.1deg); }
+  70%  { transform: translate(-1px, 0) rotate(0); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+/* ─── TOP BAR ─── */
+.bracket-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.bracket-header-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.bracket-blood-splat-sm {
+  font-size: 1.1rem;
+  color: var(--blood);
+  opacity: 0.7;
+  animation: splat-pulse 2s ease-in-out infinite;
+}
+
+@keyframes splat-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+  50% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+}
+
+.bracket-round-tag {
+  font-family: 'Cinzel', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--blood-bright);
+  display: block;
+  line-height: 1;
+}
+
+.bracket-duel-count {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  display: block;
+  margin-top: 0.15rem;
+}
+
+/* Progress */
+.bracket-progress-wrap {
+  margin-bottom: 0.25rem;
+}
+
+.bracket-progress-bg {
+  height: 3px;
+  background: #ddd8ce;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bracket-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blood), var(--blood-bright), var(--flame));
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.bracket-progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--flame-bright);
+  box-shadow: 0 0 8px var(--flame), 0 0 16px rgba(230, 126, 34, 0.3);
+}
+
+/* =====================================================================
+   INLINE DUEL — Compact fight card above bracket
+   ===================================================================== */
+
+.bracket-inline-duel {
+  background: var(--surface);
+  border: 1.5px solid var(--blood-dim);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 4px 20px rgba(139, 0, 0, 0.08);
+  animation: fade-in 0.3s ease-out;
+}
+
+.bracket-duel-question {
+  font-family: 'Cinzel Decorative', serif;
+  font-weight: 900;
+  font-size: clamp(0.85rem, 2vw, 1.1rem);
+  color: var(--text);
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin-bottom: 0.7rem;
+  text-shadow: 0 1px 4px rgba(139, 0, 0, 0.08);
+}
+
+.bracket-inline-fight {
+  display: flex;
+  align-items: stretch;
+  gap: 0.7rem;
+}
+
+.bracket-fighter-compact {
+  flex: 1;
+  cursor: pointer;
+  border: 1.5px solid #d8d3c8;
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 1rem 0.9rem;
+  color: var(--text);
+  font-family: 'Raleway', sans-serif;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 56px;
+}
+
+.bracket-fighter-compact::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--blood), var(--flame), var(--blood), transparent);
+  opacity: 0;
+  transition: opacity 0.22s;
+}
+
+.bracket-fighter-compact:hover {
+  border-color: var(--blood-bright);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(139, 0, 0, 0.12), 0 0 0 1px rgba(192, 57, 43, 0.15);
+}
+
+.bracket-fighter-compact:hover::after {
+  opacity: 1;
+}
+
+.bracket-fighter-compact-text {
+  flex: 1;
+  font-weight: 600;
+  font-size: clamp(0.85rem, 2vw, 1.05rem);
+  line-height: 1.3;
+  word-break: break-word;
+  text-align: center;
+}
+
+.bracket-fighter-compact-text .disco-song {
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.bracket-fighter-compact-text .disco-meta {
+  font-size: 0.65em;
+  color: #a0936b;
+  display: block;
+  margin-top: 0.15em;
+}
+
+.bracket-fighter-compact-hint {
+  font-size: 0.7rem;
+  color: var(--blood-dim);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Victor / Fallen for compact */
+.bracket-fighter-compact.bracket-victor {
+  border-color: var(--gold);
+  background: rgba(184, 134, 11, 0.1);
+  animation: victor-flash-compact 0.4s ease-out;
+}
+
+.bracket-fighter-compact.bracket-victor::after {
+  opacity: 1;
+  background: linear-gradient(90deg, transparent, var(--gold), var(--gold-bright), var(--gold), transparent);
+}
+
+@keyframes victor-flash-compact {
+  0% {
+    box-shadow: 0 0 0 0 rgba(184, 134, 11, 0.7), 0 0 30px rgba(184, 134, 11, 0.3);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(184, 134, 11, 0.15);
+    transform: scale(1);
+  }
+}
+
+.bracket-fighter-compact.bracket-fallen {
+  opacity: 0.25;
+  transform: scale(0.97);
+  border-color: var(--blood);
+  filter: grayscale(0.5);
+}
+
+.bracket-inline-vs {
+  font-family: 'Cinzel Decorative', serif;
+  font-weight: 900;
+  font-size: 1.2rem;
+  color: var(--blood);
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  text-shadow: 0 1px 8px rgba(139, 0, 0, 0.2);
+  animation: vs-glow 2s ease-in-out infinite;
+}
+
+@keyframes vs-glow {
+  0%, 100% {
+    text-shadow: 0 1px 8px rgba(139, 0, 0, 0.2);
+    opacity: 0.85;
+  }
+  50% {
+    text-shadow: 0 1px 16px rgba(192, 57, 43, 0.5), 0 0 30px rgba(230, 126, 34, 0.15);
+    opacity: 1;
+  }
+}
+
+/* ─── BRACKET SCROLL & CONTAINER ─── */
+.bracket-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.75rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bracket-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.bracket-scroll::-webkit-scrollbar-thumb {
+  background: var(--blood-dim);
+  border-radius: 2px;
+}
+
+.bracket-container {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  min-width: fit-content;
+}
+
+/* ─── ROUNDS ─── */
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 170px;
+  flex-shrink: 0;
+}
+
+.bracket-round-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blood-bright);
+  margin-bottom: 0.6rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--blood-dim);
+  border-radius: 2px;
+  background: rgba(192, 57, 43, 0.05);
+  white-space: nowrap;
+}
+
+.bracket-matches {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  gap: 0.4rem;
+  padding: 0 0.35rem;
+}
+
+/* ─── MATCH BOXES ─── */
+.bracket-match {
+  position: relative;
+  border: 1px solid #d8d3c8;
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 150px;
+}
+
+.bracket-match.bracket-current {
+  border-color: var(--blood-bright);
+  box-shadow: 0 0 16px rgba(192, 57, 43, 0.2), 0 0 40px rgba(192, 57, 43, 0.06);
+  animation: bracket-pulse 2s ease-in-out infinite;
+}
+
+@keyframes bracket-pulse {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(192, 57, 43, 0.2), 0 0 40px rgba(192, 57, 43, 0.06);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(192, 57, 43, 0.35), 0 0 60px rgba(192, 57, 43, 0.12);
+  }
+}
+
+.bracket-match.bracket-resolved {
+  border-color: rgba(184, 134, 11, 0.3);
+}
+
+.bracket-match.bracket-future {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.bracket-match.bracket-bye-match {
+  opacity: 0.25;
+  border-style: dotted;
+}
+
+.bracket-current-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(192, 57, 43, 0.08), transparent, rgba(230, 126, 34, 0.08));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── SLOTS (clickable when current) ─── */
+.bracket-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  position: relative;
+  z-index: 1;
+  transition: all 0.2s;
+}
+
+.bracket-top {
+  border-bottom: 1px solid #ebe7de;
+}
+
+.bracket-vs-line {
+  height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bracket-vs-mini {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 0.45rem;
+  letter-spacing: 0.15em;
+  color: var(--blood);
+  background: var(--surface);
+  padding: 0 0.3rem;
+  z-index: 2;
+  opacity: 0.7;
+}
+
+/* Clickable slots in current match */
+.bracket-slot.bracket-clickable {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bracket-slot.bracket-clickable:hover {
+  background: rgba(192, 57, 43, 0.08);
+  padding-left: 0.7rem;
+}
+
+.bracket-slot.bracket-clickable:hover .bracket-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.bracket-slot.bracket-slot-chosen {
+  background: rgba(184, 134, 11, 0.15) !important;
+  animation: slot-chosen 0.35s ease-out;
+}
+
+.bracket-slot.bracket-slot-chosen .bracket-name {
+  color: var(--gold) !important;
+  font-weight: 700 !important;
+}
+
+.bracket-slot.bracket-slot-unchosen {
+  opacity: 0.3;
+  background: rgba(139, 0, 0, 0.05);
+  text-decoration: line-through;
+}
+
+@keyframes slot-chosen {
+  0% { box-shadow: inset 0 0 0 0 rgba(184, 134, 11, 0.6); }
+  50% { box-shadow: inset 0 0 20px rgba(184, 134, 11, 0.2); }
+  100% { box-shadow: none; }
+}
+
+.bracket-slot.bracket-winner {
+  background: linear-gradient(90deg, rgba(184, 134, 11, 0.12), rgba(184, 134, 11, 0.04));
+}
+
+.bracket-slot.bracket-winner .bracket-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bracket-slot.bracket-eliminated {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.bracket-slot.bracket-eliminated .bracket-name {
+  color: var(--blood);
+}
+
+.bracket-seed {
+  font-size: 0.45rem;
+  color: var(--gold-dim);
+  flex-shrink: 0;
+  width: 7px;
+}
+
+.bracket-name {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  font-family: 'Raleway', sans-serif;
+}
+
+.bracket-name .disco-song {
+  font-size: inherit;
+}
+
+.bracket-name .disco-meta {
+  display: none;
+}
+
+.bracket-check {
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+
+.bracket-tbd {
+  color: #d5d0c5;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  font-size: 0.65rem;
+}
+
+.bracket-bye {
+  color: #d5d0c5;
+  font-style: italic;
+  font-size: 0.65rem;
+}
+
+/* ─── CHAMPION SLOT IN BRACKET ─── */
+.bracket-champion-round {
+  min-width: 110px;
+}
+
+.bracket-champion-slot {
+  border: 2px dashed var(--gold-dim);
+  border-radius: 6px;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: all 0.4s;
+}
+
+.bracket-champion-slot.bracket-crowned {
+  border-color: var(--gold);
+  border-style: solid;
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.15), rgba(212, 160, 23, 0.08));
+  box-shadow: 0 0 30px rgba(184, 134, 11, 0.2);
+  animation: crown-glow 2s ease-in-out infinite;
+}
+
+@keyframes crown-glow {
+  0%, 100% { box-shadow: 0 0 30px rgba(184, 134, 11, 0.2); }
+  50% { box-shadow: 0 0 50px rgba(184, 134, 11, 0.4), 0 0 80px rgba(184, 134, 11, 0.15); }
+}
+
+.bracket-crown {
+  font-size: 1.4rem;
+  animation: crown-bounce 1s ease-in-out infinite;
+}
+
+@keyframes crown-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.bracket-champion-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: var(--gold);
+}
+
+.bracket-tbd-champion {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 1.3rem;
+  color: #d5d0c5;
+}
+
+/* =====================================================================
+   CHAMPION SCREEN — GLORY & VICTORY
+   ===================================================================== */
+
+.bracket-champion-screen {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+}
+
+.bracket-champion-content {
+  position: relative;
+}
+
+.bracket-trophy-glow {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184, 134, 11, 0.15) 0%, transparent 70%);
+  animation: trophy-glow 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes trophy-glow {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.6; }
+  50% { transform: translateX(-50%) scale(1.3); opacity: 1; }
+}
+
+.bracket-champion-ornament {
+  color: var(--gold);
+  letter-spacing: 0.5em;
+  font-size: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.bracket-champion-subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--blood-bright);
+  margin-bottom: 0.6rem;
+}
+
+.bracket-champion-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-weight: 900;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  text-shadow: 0 4px 20px rgba(184, 134, 11, 0.3);
+  margin-bottom: 0.8rem;
+  animation: champion-appear 1s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.bracket-champion-title .disco-song {
+  display: block;
+}
+
+.bracket-champion-title .disco-meta {
+  display: block;
+  font-size: 0.45em;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 0.3em;
+}
+
+@keyframes champion-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(-5px);
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.bracket-champion-crown {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: crown-bounce 1.5s ease-in-out infinite;
+}
+
+.bracket-champion-stats {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.bracket-champion-bracket-preview {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.bracket-recap-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+/* ─── CONFETTI ─── */
+.bracket-champion-confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.bracket-champion-confetti::before,
+.bracket-champion-confetti::after {
+  content: '🎉';
+  position: absolute;
+  font-size: 2rem;
+  animation: confetti-fall 3s ease-in both;
+}
+
+.bracket-champion-confetti::before {
+  left: 20%;
+  top: -50px;
+  animation-delay: 0.2s;
+}
+
+.bracket-champion-confetti::after {
+  right: 20%;
+  top: -50px;
+  animation-delay: 0.5s;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* =====================================================================
+   RESPONSIVE
+   ===================================================================== */
+
+@media (max-width: 640px) {
+  .bracket-inline-fight {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .bracket-inline-vs {
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .bracket-fighter-compact {
+    min-height: 48px;
+  }
+
+  .bracket-round {
+    min-width: 130px;
+  }
+
+  .bracket-match {
+    min-width: 120px;
+  }
+
+  .bracket-slot {
+    padding: 0.35rem 0.4rem;
+  }
+
+  .bracket-name {
+    font-size: 0.62rem;
+  }
+}

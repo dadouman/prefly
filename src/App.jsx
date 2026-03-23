@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
+import AdminPanel from "./AdminPanel";
+import ListSelector from "./ListSelector";
+import BracketArena from "./BracketArena";
+import "./BracketArena.css";
+import { savePausedSession, loadPausedSession, clearPausedSession } from "./storage";
+import { fetchItemImages } from "./imageSearch";
 
 // =====================================================================
 // SORT ENGINE — Interactive Merge Sort
@@ -75,13 +81,65 @@ function parseInput(text) {
   return lines.map(l => l.replace(/^"|"$/g, '')).filter(Boolean);
 }
 
-function exportCSV(items) {
-  const csv = [`Rang,Élément`, ...items.map((item, i) => `${i + 1},"${item.replace(/"/g, '""')}"`)].join('\n');
+function exportCSV(items, format) {
+  let csv;
+  if (format === "discography") {
+    csv = [`Rang,Titre,Album,Année`, ...items.map((item, i) => {
+      const first = item.indexOf(" - ");
+      if (first !== -1) {
+        const song = item.substring(0, first);
+        const rest = item.substring(first + 3);
+        const ld = rest.lastIndexOf(" - ");
+        const album = ld !== -1 ? rest.substring(0, ld) : rest;
+        const year = ld !== -1 ? rest.substring(ld + 3) : "";
+        return `${i + 1},"${song.replace(/"/g, '""')}","${album.replace(/"/g, '""')}","${year}"`;
+      }
+      return `${i + 1},"${item.replace(/"/g, '""')}",,`;
+    })].join('\n');
+  } else {
+    csv = [`Rang,Élément`, ...items.map((item, i) => `${i + 1},"${item.replace(/"/g, '""')}"`)].join('\n');
+  }
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'classement.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+function ItemLabel({ item, format, imageUrl }) {
+  const img = imageUrl ? (
+    <img src={imageUrl} alt="" className="item-thumb" loading="lazy" />
+  ) : null;
+
+  if (format === "discography") {
+    const first = item.indexOf(" - ");
+    if (first !== -1) {
+      const song = item.substring(0, first);
+      const rest = item.substring(first + 3);
+      const ld = rest.lastIndexOf(" - ");
+      const albumYear = ld !== -1
+        ? rest.substring(0, ld) + " · " + rest.substring(ld + 3)
+        : rest;
+      return (
+        <span className="item-with-thumb">
+          {img}
+          <span className="item-text-wrap">
+            <span className="disco-song">{song}</span>
+            <span className="disco-meta">{albumYear}</span>
+          </span>
+        </span>
+      );
+    }
+  }
+  if (img) {
+    return (
+      <span className="item-with-thumb">
+        {img}
+        <span className="item-text-wrap">{item}</span>
+      </span>
+    );
+  }
+  return <>{item}</>;
 }
 
 // Build live ranking snapshot:
@@ -118,7 +176,7 @@ function getLiveSnapshot(state) {
 // =====================================================================
 // LIVE PANEL COMPONENT
 // =====================================================================
-function LivePanel({ snapshot }) {
+function LivePanel({ snapshot, format, imageMap }) {
   const prevKeys = useRef(new Set());
   const justAdded = new Set();
   for (const e of snapshot) {
@@ -157,7 +215,7 @@ function LivePanel({ snapshot }) {
               {entry.rank !== null ? `${entry.rank}` : "·"}
             </span>
             <span className={`live-item-text ${entry.status}`} title={entry.item}>
-              {entry.item}
+              <ItemLabel item={entry.item} format={format} imageUrl={imageMap?.get(entry.item)} />
             </span>
           </div>
         ))}
@@ -194,7 +252,15 @@ export default function App() {
   const [chosen, setChosen] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [showLive, setShowLive] = useState(true);
+  const [listFormat, setListFormat] = useState(null);
+  const [pausedSession, setPausedSession] = useState(null);
+  const [mode, setMode] = useState("classic"); // "classic" or "bracket"
+  const [imageMap, setImageMap] = useState(new Map());
+  const [loadingImages, setLoadingImages] = useState(false);
   const fileRef = useRef(null);
+
+  // Load any saved paused session on mount
+  useEffect(() => { setPausedSession(loadPausedSession()); }, []);
 
   const parsedItems = parseInput(inputText);
   const comparison = sortState && !sortState.done ? getComparison(sortState) : null;
@@ -203,8 +269,18 @@ export default function App() {
     ? (sortState.currentMerge.left.length + sortState.currentMerge.right.length) : 0;
   const snapshot = getLiveSnapshot(sortState);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (parsedItems.length < 2) return;
+    // Fetch images in background
+    setLoadingImages(true);
+    fetchItemImages(parsedItems).then((map) => {
+      setImageMap(map);
+      setLoadingImages(false);
+    });
+    if (mode === "bracket") {
+      setPhase("bracket");
+      return;
+    }
     const shuffled = shuffle(parsedItems);
     setSortState(startSort(shuffled));
     setTotal(estimateTotal(shuffled.length));
@@ -241,11 +317,44 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); };
+  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setPausedSession(loadPausedSession()); setImageMap(new Map()); };
+
+  const handlePause = () => {
+    savePausedSession({ sortState, count, total, listFormat, inputText });
+    setPausedSession(loadPausedSession());
+    setPhase("input"); setSortState(null); setSorted([]);
+  };
+
+  const handleResume = () => {
+    if (!pausedSession) return;
+    setSortState(pausedSession.sortState);
+    setCount(pausedSession.count);
+    setTotal(pausedSession.total);
+    setListFormat(pausedSession.listFormat);
+    setInputText(pausedSession.inputText);
+    clearPausedSession();
+    setPausedSession(null);
+    setPhase("sorting");
+  };
+
+  const handleDiscardPaused = () => {
+    clearPausedSession();
+    setPausedSession(null);
+  };
+
+  const handleSelectPrebuilt = (list) => {
+    setInputText(list.items.join("\n"));
+    setListFormat(list.format || null);
+  };
 
   return (
     <>
       <div className="root">
+
+        {/* ─────────────────────────────── ADMIN */}
+        {phase === "admin" && (
+          <AdminPanel onBack={() => setPhase("input")} />
+        )}
 
         {/* ─────────────────────────────── INPUT */}
         {phase === "input" && (
@@ -294,10 +403,78 @@ export default function App() {
                 <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
               </div>
 
+              {/* Mode selector */}
+              <div className="mode-selector">
+                <button
+                  className={`mode-btn${mode === "classic" ? " mode-active" : ""}`}
+                  onClick={() => setMode("classic")}
+                >
+                  <span className="mode-icon">📊</span>
+                  <span className="mode-label">Classement</span>
+                  <span className="mode-desc">Tri complet par merge-sort</span>
+                </button>
+                <button
+                  className={`mode-btn${mode === "bracket" ? " mode-active bracket" : ""}`}
+                  onClick={() => setMode("bracket")}
+                >
+                  <span className="mode-icon">⚔</span>
+                  <span className="mode-label">Phase Finale</span>
+                  <span className="mode-desc">Élimination directe</span>
+                </button>
+              </div>
+
               <button className="btn-gold" onClick={handleStart} disabled={parsedItems.length < 2}>
-                Entrer dans l'Arène &nbsp;→
+                {mode === "bracket" ? "Entrer dans l'Arène ⚔" : "Entrer dans l'Arène →"}
               </button>
+
+              {pausedSession && (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <div className="hr" style={{ flex: 1 }} />
+                    <span style={{ fontSize: "0.65rem", color: "var(--text-faint)", letterSpacing: "0.3em" }}>SESSION EN PAUSE</span>
+                    <div className="hr" style={{ flex: 1 }} />
+                  </div>
+
+                  <div className="paused-card">
+                    <div className="paused-card-info">
+                      <span className="paused-icon">⏸</span>
+                      <div>
+                        <p className="paused-title">Classement en pause</p>
+                        <p className="paused-meta">
+                          {parseInput(pausedSession.inputText).length} éléments · {pausedSession.count} / ~{pausedSession.total} comparaisons
+                        </p>
+                        <p className="paused-date">
+                          {new Date(pausedSession.timestamp).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.6rem" }}>
+                      <button className="btn-gold" onClick={handleResume} style={{ fontSize: "0.82rem", padding: "0.55rem 1.2rem" }}>
+                        ▶ Reprendre
+                      </button>
+                      <button className="btn-ghost" onClick={handleDiscardPaused} style={{ fontSize: "0.75rem", padding: "0.55rem 0.8rem" }}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div className="hr" style={{ flex: 1 }} />
+                <span style={{ fontSize: "0.65rem", color: "var(--text-faint)", letterSpacing: "0.3em" }}>OU</span>
+                <div className="hr" style={{ flex: 1 }} />
+              </div>
+
+              <ListSelector onSelect={handleSelectPrebuilt} />
             </div>
+
+            <button
+              className="admin-link"
+              onClick={() => setPhase("admin")}
+            >
+              ⚙ Administration
+            </button>
           </div>
         )}
 
@@ -336,7 +513,9 @@ export default function App() {
                   className={`choice-card${chosen === "a" ? " flash" : chosen === "b" ? " loser" : ""}`}
                   onClick={() => handleChoice(true)}
                 >
-                  <div className="choice-text">{comparison.a}</div>
+                  <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
+                    <ItemLabel item={comparison.a} format={listFormat} imageUrl={imageMap.get(comparison.a)} />
+                  </div>
                   <div className="choice-hint">← Gauche</div>
                 </button>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -346,7 +525,9 @@ export default function App() {
                   className={`choice-card${chosen === "b" ? " flash" : chosen === "a" ? " loser" : ""}`}
                   onClick={() => handleChoice(false)}
                 >
-                  <div className="choice-text">{comparison.b}</div>
+                  <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
+                    <ItemLabel item={comparison.b} format={listFormat} imageUrl={imageMap.get(comparison.b)} />
+                  </div>
                   <div className="choice-hint">Droite →</div>
                 </button>
               </div>
@@ -362,6 +543,12 @@ export default function App() {
                     {showLive ? "Masquer" : "Classement live"}
                   </button>
                   <button
+                    onClick={handlePause}
+                    style={{ background: "none", border: "1px solid rgba(201,162,39,0.25)", color: "rgba(201,162,39,0.7)", cursor: "pointer", fontSize: "0.7rem", letterSpacing: "0.1em", padding: "0.35rem 0.8rem", borderRadius: "6px" }}
+                  >
+                    ⏸ Pause
+                  </button>
+                  <button
                     onClick={reset}
                     style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "0.7rem", letterSpacing: "0.1em", textDecoration: "underline", textUnderlineOffset: "3px" }}
                   >
@@ -374,7 +561,7 @@ export default function App() {
             {/* Side panel — desktop */}
             {showLive && (
               <div className="side-col" style={{ paddingTop: "5.2rem" }}>
-                <LivePanel snapshot={snapshot} />
+                <LivePanel snapshot={snapshot} format={listFormat} imageMap={imageMap} />
               </div>
             )}
 
@@ -383,6 +570,16 @@ export default function App() {
               <style>{`.side-col { display: flex !important; } @media (max-width: 940px) { .side-col { padding-top: 0 !important; } }`}</style>
             )}
           </div>
+        )}
+
+        {/* ─────────────────────────────── BRACKET */}
+        {phase === "bracket" && (
+          <BracketArena
+            items={parsedItems}
+            format={listFormat}
+            imageMap={imageMap}
+            onReset={reset}
+          />
         )}
 
         {/* ─────────────────────────────── RESULT */}
@@ -404,15 +601,15 @@ export default function App() {
                   <span className={`rank${i < 3 ? " top3" : ""}`}>
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                   </span>
-                  <span style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
-                    {item}
+                  <span className={listFormat === "discography" ? "result-item disco" : ""} style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
+                    <ItemLabel item={item} format={listFormat} imageUrl={imageMap.get(item)} />
                   </span>
                 </div>
               ))}
             </div>
 
             <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap" }}>
-              <button className="btn-gold" onClick={() => exportCSV(sorted)}>↓ &nbsp;Exporter CSV</button>
+              <button className="btn-gold" onClick={() => exportCSV(sorted, listFormat)}>↓ &nbsp;Exporter CSV</button>
               <button className="btn-ghost" onClick={reset}>Nouveau Tournoi</button>
             </div>
           </div>

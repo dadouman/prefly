@@ -630,3 +630,444 @@ textarea::placeholder {
   background: var(--gold-dim);
   border-radius: 2px;
 }
+
+/* =====================================================================
+   ADMIN & LIST SELECTOR
+   ===================================================================== */
+
+/* Admin input */
+.admin-input {
+  width: 100%;
+  background: #f8f6f1;
+  border: 1px solid #d8d3c8;
+  border-radius: 3px;
+  color: var(--text);
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.admin-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Admin list cards */
+.admin-list-card {
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-list-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 4px 16px rgba(184, 134, 11, 0.1);
+}
+
+.admin-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  border: 1px solid #d8d3c8;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--text-dim);
+}
+
+.admin-action-btn.edit:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-glow);
+}
+
+.admin-action-btn.delete:hover {
+  border-color: #c0392b;
+  color: #c0392b;
+  background: rgba(192, 57, 43, 0.06);
+}
+
+.admin-action-btn.delete.confirm {
+  border-color: #c0392b;
+  color: #fff;
+  background: #c0392b;
+  animation: pulse-confirm 0.6s ease infinite;
+}
+
+@keyframes pulse-confirm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Paused session card */
+.paused-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  background: rgba(201,162,39,0.06);
+  border: 1px solid rgba(201,162,39,0.18);
+  border-radius: 10px;
+}
+.paused-card-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+}
+.paused-icon {
+  font-size: 1.4rem;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.paused-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+.paused-meta {
+  font-size: 0.72rem;
+  color: rgba(201,162,39,0.55);
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+.paused-date {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  margin-top: 0.1rem;
+}
+@media (max-width: 500px) {
+  .paused-card {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .paused-card-info {
+    flex-direction: column;
+  }
+  .paused-card > div:last-child {
+    justify-content: center;
+  }
+}
+
+/* Admin link */
+.admin-link {
+
+  display: block;
+  margin: 1.2rem auto 0;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+  padding: 0.4rem 0;
+}
+
+.admin-link:hover {
+  color: var(--gold);
+}
+
+/* List selector */
+.list-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.list-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.7rem;
+}
+
+.list-selector-card {
+  background: var(--surface);
+  border: 1px solid #d8d3c8;
+  border-radius: 4px;
+  padding: 0.9rem 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Raleway', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.list-selector-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(184, 134, 11, 0.12);
+  background: rgba(184, 134, 11, 0.04);
+}
+
+.list-selector-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.list-selector-desc {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.list-selector-count {
+  font-size: 0.65rem;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+}
+
+/* =====================================================================
+   DISCOGRAPHY FORMAT
+   ===================================================================== */
+
+.disco-song {
+  display: block;
+}
+
+.disco-meta {
+  display: block;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  font-style: italic;
+}
+
+/* Choice cards — discography */
+.choice-text.disco {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.choice-text.disco .disco-song {
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.choice-text.disco .disco-meta {
+  font-size: 0.6em;
+  color: #a0936b;
+}
+
+/* Live panel — discography */
+.live-item-text .disco-song {
+  font-size: inherit;
+}
+
+.live-item-text .disco-meta {
+  font-size: 0.65em;
+  opacity: 0.6;
+  font-style: italic;
+  margin-top: 0.1em;
+}
+
+/* Result rows — discography */
+.result-item.disco {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.result-item.disco .disco-song {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.result-item.disco .disco-meta {
+  font-size: 0.75em;
+  color: var(--text-faint);
+}
+
+/* =====================================================================
+   MODE SELECTOR — Classic vs Bracket
+   ===================================================================== */
+
+.mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.mode-btn {
+  background: var(--surface);
+  border: 1.5px solid #d8d3c8;
+  border-radius: 4px;
+  padding: 0.9rem 0.7rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Raleway', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.mode-btn:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(184, 134, 11, 0.1);
+}
+
+.mode-btn.mode-active {
+  border-color: var(--gold);
+  background: rgba(184, 134, 11, 0.06);
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.08);
+}
+
+.mode-btn.mode-active.bracket {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.06);
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.08);
+}
+
+.mode-btn.mode-active.bracket .mode-label {
+  color: #c0392b;
+}
+
+.mode-icon {
+  font-size: 1.3rem;
+  margin-bottom: 0.15rem;
+}
+
+.mode-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+  letter-spacing: 0.05em;
+}
+
+.mode-active .mode-label {
+  color: var(--gold);
+}
+
+.mode-desc {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
+
+/* =====================================================================
+   ITEM THUMBNAILS — auto-fetched images
+   ===================================================================== */
+
+.item-with-thumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.item-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(184, 134, 11, 0.08);
+  border: 1px solid rgba(184, 134, 11, 0.15);
+}
+
+.item-thumb-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.item-text-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Choice cards with images */
+.choice-card .item-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  margin-bottom: 0.3rem;
+}
+
+.choice-card .item-with-thumb {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Result rows with images */
+.result-row .item-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+}
+
+.result-row .item-with-thumb {
+  gap: 0.5rem;
+}
+
+/* Live panel — smaller thumbs */
+.live-item-text .item-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.live-item-text .item-with-thumb {
+  gap: 0.35rem;
+}
+
+/* Bracket — compact thumbs */
+.bracket-name .item-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.bracket-fighter-compact .item-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+}
+
+.bracket-fighter-compact .item-with-thumb {
+  flex-direction: column;
+  align-items: center;
+}
+
+.bracket-champion-name .item-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+}
+
+.bracket-champion-title .item-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 2px solid var(--gold);
+}
