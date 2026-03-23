@@ -725,6 +725,7 @@
 
 /* Duel fighter image */
 .bracket-fighter-img-wrap {
+  position: relative;
   width: 100%;
   display: flex;
   justify-content: center;

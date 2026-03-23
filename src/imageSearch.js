@@ -3,21 +3,28 @@
 // Uses Wikipedia search API (free, no API key, CORS-friendly)
 // =====================================================================
 
+// Cache stores { urls: string[], index: number } per term
 const cache = new Map();
 
 const WIKI_API = "https://fr.wikipedia.org/w/api.php";
 const WIKI_API_EN = "https://en.wikipedia.org/w/api.php";
 const THUMB_SIZE = 200;
+const RESULTS_PER_SEARCH = 8;
 
 /**
  * Fetch a thumbnail for a single item via Wikipedia search.
+ * Fetches multiple results and stores them for cycling.
  * Tries French Wikipedia first, then English.
  */
 async function fetchSingleImage(term) {
-  if (cache.has(term)) return cache.get(term);
+  if (cache.has(term)) {
+    const entry = cache.get(term);
+    return entry.urls[entry.index] ?? null;
+  }
 
   // For discography format, extract just the song name
   const searchTerm = extractSearchTerm(term);
+  const allUrls = [];
 
   for (const api of [WIKI_API, WIKI_API_EN]) {
     try {
@@ -25,7 +32,7 @@ async function fetchSingleImage(term) {
         action: "query",
         generator: "search",
         gsrsearch: searchTerm,
-        gsrlimit: "1",
+        gsrlimit: String(RESULTS_PER_SEARCH),
         prop: "pageimages",
         pithumbsize: String(THUMB_SIZE),
         format: "json",
@@ -39,19 +46,18 @@ async function fetchSingleImage(term) {
       const pages = data.query?.pages;
       if (!pages) continue;
 
-      const page = Object.values(pages)[0];
-      const url = page?.thumbnail?.source;
-      if (url) {
-        cache.set(term, url);
-        return url;
+      for (const page of Object.values(pages)) {
+        const url = page?.thumbnail?.source;
+        if (url && !allUrls.includes(url)) allUrls.push(url);
       }
+      if (allUrls.length > 0) break; // found results on this wiki, no need to try next
     } catch {
       // Network error, try next API
     }
   }
 
-  cache.set(term, null);
-  return null;
+  cache.set(term, { urls: allUrls, index: 0 });
+  return allUrls[0] ?? null;
 }
 
 /**
@@ -72,6 +78,17 @@ function extractSearchTerm(item) {
 }
 
 /**
+ * Dismiss current image for a term and return the next one (or null).
+ */
+export function dismissImage(term) {
+  const entry = cache.get(term);
+  if (!entry || entry.urls.length === 0) return null;
+  entry.index = (entry.index + 1) % entry.urls.length;
+  // If we've looped back to 0, all images have been seen — still return it
+  return entry.urls[entry.index] ?? null;
+}
+
+/**
  * Fetch images for a list of items.
  * Returns a Map<string, string|null> of item → imageUrl.
  * Fetches in parallel with concurrency limit.
@@ -83,7 +100,8 @@ export async function fetchItemImages(items, onProgress) {
 
   // Add cached results immediately
   for (const item of alreadyCached) {
-    results.set(item, cache.get(item));
+    const entry = cache.get(item);
+    results.set(item, entry.urls[entry.index] ?? null);
   }
 
   // Fetch in batches of 5 to avoid overwhelming the API

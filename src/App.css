@@ -983,6 +983,12 @@ textarea::placeholder {
   min-width: 0;
 }
 
+.item-thumb-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .item-thumb {
   width: 44px;
   height: 44px;
@@ -991,6 +997,41 @@ textarea::placeholder {
   flex-shrink: 0;
   background: rgba(184, 134, 11, 0.08);
   border: 1px solid rgba(184, 134, 11, 0.15);
+}
+
+/* Dismiss image button — appears on hover */
+.img-dismiss-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(30, 28, 22, 0.85);
+  color: rgba(232, 228, 217, 0.8);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, transform 0.15s;
+  z-index: 5;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.item-thumb-wrap:hover .img-dismiss-btn,
+.bracket-fighter-img-wrap:hover .img-dismiss-btn {
+  opacity: 1;
+}
+
+.img-dismiss-btn:hover {
+  background: rgba(180, 50, 50, 0.9);
+  color: #fff;
+  transform: scale(1.15);
 }
 
 .item-thumb-sm {

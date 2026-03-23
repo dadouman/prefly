@@ -321,7 +321,7 @@ function BracketView({ rounds, currentMatch, format, imageMap, onPickWinner, cho
 // =====================================================================
 // MAIN BRACKET ARENA COMPONENT
 // =====================================================================
-export default function BracketArena({ items, format, imageMap, onFinish, onReset }) {
+export default function BracketArena({ items, format, imageMap, onDismissImage, onFinish, onReset }) {
   const [rounds, setRounds] = useState(() => {
     const r = buildBracket(items);
     return r;
@@ -463,6 +463,14 @@ export default function BracketArena({ items, format, imageMap, onFinish, onRese
               {imageMap?.get(currentMatchData.a) && (
                 <div className="bracket-fighter-img-wrap">
                   <img src={imageMap.get(currentMatchData.a)} alt="" className="bracket-fighter-img" />
+                  {onDismissImage && (
+                    <button
+                      className="img-dismiss-btn"
+                      onClick={(e) => { e.stopPropagation(); onDismissImage(currentMatchData.a); }}
+                      title="Image incorrecte ? Essayer la suivante"
+                      aria-label="Changer d'image"
+                    >×</button>
+                  )}
                 </div>
               )}
               <span className="bracket-fighter-compact-text">
@@ -478,6 +486,14 @@ export default function BracketArena({ items, format, imageMap, onFinish, onRese
               {imageMap?.get(currentMatchData.b) && (
                 <div className="bracket-fighter-img-wrap">
                   <img src={imageMap.get(currentMatchData.b)} alt="" className="bracket-fighter-img" />
+                  {onDismissImage && (
+                    <button
+                      className="img-dismiss-btn"
+                      onClick={(e) => { e.stopPropagation(); onDismissImage(currentMatchData.b); }}
+                      title="Image incorrecte ? Essayer la suivante"
+                      aria-label="Changer d'image"
+                    >×</button>
+                  )}
                 </div>
               )}
               <span className="bracket-fighter-compact-text">
