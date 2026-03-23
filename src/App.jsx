@@ -378,7 +378,7 @@ export default function App() {
 
         {/* ─────────────────────────────── INPUT */}
         {phase === "input" && (
-          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
+          <div className="fade" style={{ width: "100%", maxWidth: 680 }}>
             <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
               <div className="ornament" style={{ marginBottom: "0.8rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.7rem" }}>Tournoi de Classement</p>
@@ -388,7 +388,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="card" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+            <div className="card card-input-main" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
               <div>
                 <span className="label">Coller votre liste</span>
                 <textarea
@@ -605,7 +605,7 @@ export default function App() {
 
         {/* ─────────────────────────────── RESULT */}
         {phase === "result" && (
-          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
+          <div className="fade" style={{ width: "100%", maxWidth: 720 }}>
             <div style={{ textAlign: "center", marginBottom: "2rem" }}>
               <div className="ornament" style={{ marginBottom: "0.7rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Classement Final</p>
@@ -616,7 +616,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
+            <div className="card" style={{ padding: "1.5rem 2rem", marginBottom: "1.5rem", maxHeight: "60vh", overflowY: "auto" }}>
               {sorted.map((item, i) => (
                 <div key={i} className="result-row" style={{ animationDelay: `${Math.min(i * 0.04, 0.6)}s` }}>
                   <span className={`rank${i < 3 ? " top3" : ""}`}>

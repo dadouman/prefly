@@ -840,3 +840,77 @@
     height: 110px;
   }
 }
+
+/* ─── DESKTOP ENHANCEMENTS ─── */
+@media (min-width: 1024px) {
+  .bracket-arena {
+    max-width: 1400px;
+    gap: 1.4rem;
+  }
+
+  .bracket-inline-duel {
+    padding: 1.8rem 2.5rem;
+    border-radius: 10px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .bracket-duel-question {
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    margin-bottom: 1rem;
+  }
+
+  .bracket-inline-fight {
+    gap: 1.2rem;
+  }
+
+  .bracket-fighter-compact {
+    padding: 1.5rem 1.2rem;
+    min-height: 160px;
+    border-radius: 8px;
+    gap: 0.8rem;
+  }
+
+  .bracket-fighter-compact-text {
+    font-size: clamp(1rem, 2vw, 1.3rem);
+  }
+
+  .bracket-fighter-img {
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+  }
+
+  .bracket-inline-vs {
+    font-size: 1.5rem;
+  }
+
+  .bracket-round {
+    min-width: 200px;
+  }
+
+  .bracket-match {
+    min-width: 180px;
+  }
+
+  .bracket-slot {
+    padding: 0.5rem 0.7rem;
+  }
+
+  .bracket-name {
+    font-size: 0.78rem;
+  }
+
+  .bracket-champion-screen {
+    max-width: 1000px;
+  }
+
+  .bracket-champion-img {
+    width: 180px;
+    height: 180px;
+  }
+
+  .bracket-champion-title {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+  }
+}
