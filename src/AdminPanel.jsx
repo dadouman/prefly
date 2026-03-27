@@ -41,7 +41,7 @@ function AdminLogin({ onLogin, onBack }) {
   };
 
   return (
-    <div className="fade" style={{ width: "100%", maxWidth: 480 }}>
+    <div className="fade" style={{ width: "100%", maxWidth: 420 }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <div className="ornament" style={{ marginBottom: "0.7rem" }}>⚙ ⚙ ⚙</div>
         <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Administration</p>
@@ -213,7 +213,7 @@ export default function AdminPanel({ onBack }) {
   };
 
   return (
-    <div className="fade" style={{ width: "100%", maxWidth: 720 }}>
+    <div className="fade" style={{ width: "100%", maxWidth: 560 }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <div className="ornament" style={{ marginBottom: "0.7rem" }}>⚙ ⚙ ⚙</div>
         <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Administration</p>

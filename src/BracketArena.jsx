@@ -329,6 +329,7 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
   const [chosen, setChosen] = useState(null);
   const [champion, setChampion] = useState(null);
   const [shakeScreen, setShakeScreen] = useState(false);
+  const [history, setHistory] = useState([]);
 
   const currentMatch = findCurrentMatch(rounds);
   const totalRounds = rounds.length;
@@ -350,6 +351,7 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
 
     setTimeout(() => {
       setShakeScreen(false);
+      setHistory(prev => [...prev, rounds]);
       const newRounds = rounds.map(r => r.map(m => ({ ...m })));
       const match = newRounds[currentMatch.round][currentMatch.match];
       match.winner = side === "a" ? match.a : match.b;
@@ -369,15 +371,26 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
     }, 500);
   }, [chosen, currentMatch, rounds]);
 
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+    setRounds(prev);
+    setChosen(null);
+    setChampion(null);
+  }, [history]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const fn = (e) => {
       if (e.key === "ArrowLeft") handleChoice("a");
       if (e.key === "ArrowRight") handleChoice("b");
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
+      if (e.key === "Backspace") { e.preventDefault(); handleUndo(); }
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [handleChoice]);
+  }, [handleChoice, handleUndo]);
 
   const progress = totalMatches > 0 ? (resolvedMatches / totalMatches) * 100 : 0;
 
@@ -410,6 +423,9 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
           </div>
 
           <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap", marginTop: "2rem" }}>
+            {history.length > 0 && (
+              <button className="bracket-undo-btn" onClick={handleUndo}>↩ Revenir en arrière</button>
+            )}
             <button className="btn-gold" onClick={onReset}>Nouveau Tournoi</button>
           </div>
         </div>
@@ -435,6 +451,13 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
           <span style={{ fontSize: "0.68rem", color: "var(--text-faint)", letterSpacing: "0.06em" }}>
             <span style={{ color: "rgba(201,162,39,0.45)" }}>←</span> gauche · <span style={{ color: "rgba(201,162,39,0.45)" }}>→</span> droite
           </span>
+          {history.length > 0 && (
+            <button
+              className="bracket-undo-btn"
+              onClick={handleUndo}
+              title="Revenir au choix précédent (Ctrl+Z)"
+            >↩</button>
+          )}
           <button
             onClick={onReset}
             style={{ background: "none", border: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: "0.7rem", letterSpacing: "0.1em", textDecoration: "underline", textUnderlineOffset: "3px" }}

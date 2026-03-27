@@ -5,7 +5,6 @@ import ListSelector from "./ListSelector";
 import BracketArena from "./BracketArena";
 import "./BracketArena.css";
 import { savePausedSession, loadPausedSession, clearPausedSession } from "./storage";
-import { fetchItemImages, dismissImage } from "./imageSearch";
 
 // =====================================================================
 // SORT ENGINE — Interactive Merge Sort
@@ -106,21 +105,7 @@ function exportCSV(items, format) {
   URL.revokeObjectURL(url);
 }
 
-function ItemLabel({ item, format, imageUrl, onDismissImage }) {
-  const img = imageUrl ? (
-    <span className="item-thumb-wrap">
-      <img src={imageUrl} alt="" className="item-thumb" loading="lazy" />
-      {onDismissImage && (
-        <button
-          className="img-dismiss-btn"
-          onClick={(e) => { e.stopPropagation(); onDismissImage(item); }}
-          title="Image incorrecte ? Essayer la suivante"
-          aria-label="Changer d'image"
-        >×</button>
-      )}
-    </span>
-  ) : null;
-
+function ItemLabel({ item, format }) {
   if (format === "discography") {
     const first = item.indexOf(" - ");
     if (first !== -1) {
@@ -131,23 +116,12 @@ function ItemLabel({ item, format, imageUrl, onDismissImage }) {
         ? rest.substring(0, ld) + " · " + rest.substring(ld + 3)
         : rest;
       return (
-        <span className="item-with-thumb">
-          {img}
-          <span className="item-text-wrap">
-            <span className="disco-song">{song}</span>
-            <span className="disco-meta">{albumYear}</span>
-          </span>
-        </span>
+        <>
+          <span className="disco-song">{song}</span>
+          <span className="disco-meta">{albumYear}</span>
+        </>
       );
     }
-  }
-  if (img) {
-    return (
-      <span className="item-with-thumb">
-        {img}
-        <span className="item-text-wrap">{item}</span>
-      </span>
-    );
   }
   return <>{item}</>;
 }
@@ -186,7 +160,7 @@ function getLiveSnapshot(state) {
 // =====================================================================
 // LIVE PANEL COMPONENT
 // =====================================================================
-function LivePanel({ snapshot, format, imageMap, onDismissImage }) {
+function LivePanel({ snapshot, format }) {
   const prevKeys = useRef(new Set());
   const justAdded = new Set();
   for (const e of snapshot) {
@@ -225,7 +199,7 @@ function LivePanel({ snapshot, format, imageMap, onDismissImage }) {
               {entry.rank !== null ? `${entry.rank}` : "·"}
             </span>
             <span className={`live-item-text ${entry.status}`} title={entry.item}>
-              <ItemLabel item={entry.item} format={format} imageUrl={imageMap?.get(entry.item)} onDismissImage={onDismissImage} />
+              <ItemLabel item={entry.item} format={format} />
             </span>
           </div>
         ))}
@@ -262,22 +236,11 @@ export default function App() {
   const [chosen, setChosen] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [showLive, setShowLive] = useState(true);
+  const [sortHistory, setSortHistory] = useState([]);
   const [listFormat, setListFormat] = useState(null);
   const [pausedSession, setPausedSession] = useState(null);
   const [mode, setMode] = useState("classic"); // "classic" or "bracket"
-  const [imageMap, setImageMap] = useState(new Map());
-  const [loadingImages, setLoadingImages] = useState(false);
   const fileRef = useRef(null);
-
-  // Dismiss an image and cycle to the next Wikipedia result
-  const handleDismissImage = useCallback((term) => {
-    const nextUrl = dismissImage(term);
-    setImageMap(prev => {
-      const copy = new Map(prev);
-      copy.set(term, nextUrl);
-      return copy;
-    });
-  }, []);
 
   // Load any saved paused session on mount
   useEffect(() => { setPausedSession(loadPausedSession()); }, []);
@@ -289,14 +252,8 @@ export default function App() {
     ? (sortState.currentMerge.left.length + sortState.currentMerge.right.length) : 0;
   const snapshot = getLiveSnapshot(sortState);
 
-  const handleStart = async () => {
+  const handleStart = () => {
     if (parsedItems.length < 2) return;
-    // Fetch images in background
-    setLoadingImages(true);
-    fetchItemImages(parsedItems).then((map) => {
-      setImageMap(map);
-      setLoadingImages(false);
-    });
     if (mode === "bracket") {
       setPhase("bracket");
       return;
@@ -313,22 +270,37 @@ export default function App() {
     setChosen(pickLeft ? "a" : "b");
     setTimeout(() => {
       setChosen(null);
+      setSortHistory(prev => [...prev, { sortState, count }]);
       const next = advance(sortState, pickLeft);
       setCount(c => c + 1);
       if (next.done) { setSorted(next.sorted); setPhase("result"); }
       else setSortState(next);
     }, 300);
-  }, [chosen, sortState]);
+  }, [chosen, sortState, count]);
+
+  const handleSortUndo = useCallback(() => {
+    if (sortHistory.length === 0) return;
+    const prev = sortHistory[sortHistory.length - 1];
+    setSortHistory(h => h.slice(0, -1));
+    setSortState(prev.sortState);
+    setCount(prev.count);
+    setChosen(null);
+    if (phase === "result") { setSorted([]); setPhase("sorting"); }
+  }, [sortHistory, phase]);
 
   useEffect(() => {
-    if (phase !== "sorting") return;
+    if (phase !== "sorting" && phase !== "result") return;
     const fn = (e) => {
-      if (e.key === "ArrowLeft")  handleChoice(true);
-      if (e.key === "ArrowRight") handleChoice(false);
+      if (phase === "sorting") {
+        if (e.key === "ArrowLeft")  handleChoice(true);
+        if (e.key === "ArrowRight") handleChoice(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleSortUndo(); }
+      if (e.key === "Backspace") { e.preventDefault(); handleSortUndo(); }
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [phase, handleChoice]);
+  }, [phase, handleChoice, handleSortUndo]);
 
   const handleFile = (file) => {
     if (!file) return;
@@ -337,7 +309,7 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setPausedSession(loadPausedSession()); setImageMap(new Map()); };
+  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setSortHistory([]); setPausedSession(loadPausedSession()); };
 
   const handlePause = () => {
     savePausedSession({ sortState, count, total, listFormat, inputText });
@@ -378,7 +350,7 @@ export default function App() {
 
         {/* ─────────────────────────────── INPUT */}
         {phase === "input" && (
-          <div className="fade" style={{ width: "100%", maxWidth: 680 }}>
+          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
             <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
               <div className="ornament" style={{ marginBottom: "0.8rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.7rem" }}>Tournoi de Classement</p>
@@ -388,7 +360,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="card card-input-main" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+            <div className="card" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
               <div>
                 <span className="label">Coller votre liste</span>
                 <textarea
@@ -534,7 +506,7 @@ export default function App() {
                   onClick={() => handleChoice(true)}
                 >
                   <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
-                    <ItemLabel item={comparison.a} format={listFormat} imageUrl={imageMap.get(comparison.a)} onDismissImage={handleDismissImage} />
+                    <ItemLabel item={comparison.a} format={listFormat} />
                   </div>
                   <div className="choice-hint">← Gauche</div>
                 </button>
@@ -546,7 +518,7 @@ export default function App() {
                   onClick={() => handleChoice(false)}
                 >
                   <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
-                    <ItemLabel item={comparison.b} format={listFormat} imageUrl={imageMap.get(comparison.b)} onDismissImage={handleDismissImage} />
+                    <ItemLabel item={comparison.b} format={listFormat} />
                   </div>
                   <div className="choice-hint">Droite →</div>
                 </button>
@@ -562,6 +534,13 @@ export default function App() {
                     <span className="live-dot" />
                     {showLive ? "Masquer" : "Classement live"}
                   </button>
+                  {sortHistory.length > 0 && (
+                    <button
+                      className="bracket-undo-btn"
+                      onClick={handleSortUndo}
+                      title="Revenir au choix précédent (Ctrl+Z)"
+                    >↩ Retour</button>
+                  )}
                   <button
                     onClick={handlePause}
                     style={{ background: "none", border: "1px solid rgba(201,162,39,0.25)", color: "rgba(201,162,39,0.7)", cursor: "pointer", fontSize: "0.7rem", letterSpacing: "0.1em", padding: "0.35rem 0.8rem", borderRadius: "6px" }}
@@ -581,7 +560,7 @@ export default function App() {
             {/* Side panel — desktop */}
             {showLive && (
               <div className="side-col" style={{ paddingTop: "5.2rem" }}>
-                <LivePanel snapshot={snapshot} format={listFormat} imageMap={imageMap} onDismissImage={handleDismissImage} />
+                <LivePanel snapshot={snapshot} format={listFormat} />
               </div>
             )}
 
@@ -597,15 +576,13 @@ export default function App() {
           <BracketArena
             items={parsedItems}
             format={listFormat}
-            imageMap={imageMap}
-            onDismissImage={handleDismissImage}
             onReset={reset}
           />
         )}
 
         {/* ─────────────────────────────── RESULT */}
         {phase === "result" && (
-          <div className="fade" style={{ width: "100%", maxWidth: 720 }}>
+          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
             <div style={{ textAlign: "center", marginBottom: "2rem" }}>
               <div className="ornament" style={{ marginBottom: "0.7rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Classement Final</p>
@@ -616,14 +593,14 @@ export default function App() {
               </div>
             </div>
 
-            <div className="card" style={{ padding: "1.5rem 2rem", marginBottom: "1.5rem", maxHeight: "60vh", overflowY: "auto" }}>
+            <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
               {sorted.map((item, i) => (
                 <div key={i} className="result-row" style={{ animationDelay: `${Math.min(i * 0.04, 0.6)}s` }}>
                   <span className={`rank${i < 3 ? " top3" : ""}`}>
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                   </span>
                   <span className={listFormat === "discography" ? "result-item disco" : ""} style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
-                    <ItemLabel item={item} format={listFormat} imageUrl={imageMap.get(item)} onDismissImage={handleDismissImage} />
+                    <ItemLabel item={item} format={listFormat} />
                   </span>
                 </div>
               ))}
@@ -631,6 +608,9 @@ export default function App() {
 
             <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn-gold" onClick={() => exportCSV(sorted, listFormat)}>↓ &nbsp;Exporter CSV</button>
+              {sortHistory.length > 0 && (
+                <button className="bracket-undo-btn" onClick={handleSortUndo}>↩ Revenir en arrière</button>
+              )}
               <button className="btn-ghost" onClick={reset}>Nouveau Tournoi</button>
             </div>
           </div>
