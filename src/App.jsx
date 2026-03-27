@@ -5,6 +5,7 @@ import ListSelector from "./ListSelector";
 import BracketArena from "./BracketArena";
 import "./BracketArena.css";
 import { savePausedSession, loadPausedSession, clearPausedSession } from "./storage";
+import { fetchItemImages, dismissImage } from "./imageSearch";
 
 // =====================================================================
 // YOUTUBE SEARCH HELPERS
@@ -229,7 +230,21 @@ function YouTubePlayer({ item }) {
   );
 }
 
-function ItemLabel({ item, format }) {
+function ItemLabel({ item, format, imageUrl, onDismissImage }) {
+  const img = imageUrl ? (
+    <span className="item-thumb-wrap">
+      <img src={imageUrl} alt="" className="item-thumb" loading="lazy" />
+      {onDismissImage && (
+        <button
+          className="img-dismiss-btn"
+          onClick={(e) => { e.stopPropagation(); onDismissImage(item); }}
+          title="Image incorrecte ? Essayer la suivante"
+          aria-label="Changer d'image"
+        >✕</button>
+      )}
+    </span>
+  ) : null;
+
   if (format === "discography") {
     const first = item.indexOf(" - ");
     if (first !== -1) {
@@ -240,12 +255,23 @@ function ItemLabel({ item, format }) {
         ? rest.substring(0, ld) + " · " + rest.substring(ld + 3)
         : rest;
       return (
-        <>
-          <span className="disco-song">{song}</span>
-          <span className="disco-meta">{albumYear}</span>
-        </>
+        <span className="item-with-thumb">
+          {img}
+          <span className="item-text-wrap">
+            <span className="disco-song">{song}</span>
+            <span className="disco-meta">{albumYear}</span>
+          </span>
+        </span>
       );
     }
+  }
+  if (img) {
+    return (
+      <span className="item-with-thumb">
+        {img}
+        <span className="item-text-wrap">{item}</span>
+      </span>
+    );
   }
   return <>{item}</>;
 }
@@ -284,7 +310,7 @@ function getLiveSnapshot(state) {
 // =====================================================================
 // LIVE PANEL COMPONENT
 // =====================================================================
-function LivePanel({ snapshot, format }) {
+function LivePanel({ snapshot, format, imageMap, onDismissImage }) {
   const prevKeys = useRef(new Set());
   const justAdded = new Set();
   for (const e of snapshot) {
@@ -323,7 +349,7 @@ function LivePanel({ snapshot, format }) {
               {entry.rank !== null ? `${entry.rank}` : "·"}
             </span>
             <span className={`live-item-text ${entry.status}`} title={entry.item}>
-              <ItemLabel item={entry.item} format={format} />
+              <ItemLabel item={entry.item} format={format} imageUrl={imageMap?.get(entry.item)} onDismissImage={onDismissImage} />
             </span>
           </div>
         ))}
@@ -365,7 +391,19 @@ export default function App() {
   const [pausedSession, setPausedSession] = useState(null);
   const [mode, setMode] = useState("classic"); // "classic" or "bracket"
   const [youtubeLinks, setYoutubeLinks] = useState(false);
+  const [imageMap, setImageMap] = useState(new Map());
+  const [loadingImages, setLoadingImages] = useState(false);
   const fileRef = useRef(null);
+
+  // Dismiss an image and cycle to the next Wikipedia result
+  const handleDismissImage = useCallback((term) => {
+    const nextUrl = dismissImage(term);
+    setImageMap(prev => {
+      const copy = new Map(prev);
+      copy.set(term, nextUrl);
+      return copy;
+    });
+  }, []);
 
   // Load any saved paused session on mount
   useEffect(() => { setPausedSession(loadPausedSession()); }, []);
@@ -377,8 +415,14 @@ export default function App() {
     ? (sortState.currentMerge.left.length + sortState.currentMerge.right.length) : 0;
   const snapshot = getLiveSnapshot(sortState);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (parsedItems.length < 2) return;
+    // Fetch images in background
+    setLoadingImages(true);
+    fetchItemImages(parsedItems).then((map) => {
+      setImageMap(map);
+      setLoadingImages(false);
+    });
     if (mode === "bracket") {
       setPhase("bracket");
       return;
@@ -434,7 +478,7 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); };
+  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); };
 
   const handlePause = () => {
     savePausedSession({ sortState, count, total, listFormat, inputText, youtubeLinks });
@@ -647,7 +691,7 @@ export default function App() {
                   tabIndex={0}
                 >
                   <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
-                    <ItemLabel item={comparison.a} format={listFormat} />
+                    <ItemLabel item={comparison.a} format={listFormat} imageUrl={imageMap.get(comparison.a)} onDismissImage={handleDismissImage} />
                   </div>
                   {youtubeLinks && <YouTubePlayer item={comparison.a} />}
                   <div className="choice-hint">← Gauche</div>
@@ -662,7 +706,7 @@ export default function App() {
                   tabIndex={0}
                 >
                   <div className={`choice-text${listFormat === "discography" ? " disco" : ""}`}>
-                    <ItemLabel item={comparison.b} format={listFormat} />
+                    <ItemLabel item={comparison.b} format={listFormat} imageUrl={imageMap.get(comparison.b)} onDismissImage={handleDismissImage} />
                   </div>
                   {youtubeLinks && <YouTubePlayer item={comparison.b} />}
                   <div className="choice-hint">Droite →</div>
@@ -705,7 +749,7 @@ export default function App() {
             {/* Side panel — desktop */}
             {showLive && (
               <div className="side-col" style={{ paddingTop: "5.2rem" }}>
-                <LivePanel snapshot={snapshot} format={listFormat} />
+                <LivePanel snapshot={snapshot} format={listFormat} imageMap={imageMap} onDismissImage={handleDismissImage} />
               </div>
             )}
 
@@ -721,6 +765,8 @@ export default function App() {
           <BracketArena
             items={parsedItems}
             format={listFormat}
+            imageMap={imageMap}
+            onDismissImage={handleDismissImage}
             onReset={reset}
           />
         )}
@@ -745,7 +791,7 @@ export default function App() {
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                   </span>
                   <span className={listFormat === "discography" ? "result-item disco" : ""} style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
-                    <ItemLabel item={item} format={listFormat} />
+                    <ItemLabel item={item} format={listFormat} imageUrl={imageMap.get(item)} onDismissImage={handleDismissImage} />
                   </span>
                   {youtubeLinks && <YouTubePlayer item={item} />}
                 </div>
