@@ -259,6 +259,7 @@ textarea::placeholder {
   background: linear-gradient(135deg, rgba(184, 134, 11, 0.06), transparent);
   opacity: 0;
   transition: opacity 0.22s;
+  pointer-events: none;
 }
 
 .choice-card:hover {
@@ -970,4 +971,191 @@ textarea::placeholder {
   font-size: 0.65rem;
   color: var(--text-faint);
   letter-spacing: 0.06em;
+}
+
+/* =====================================================================
+   YOUTUBE TOGGLE & LINK
+   ===================================================================== */
+
+.yt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  border: 1.5px solid #d8d3c8;
+  background: var(--surface);
+  transition: all 0.2s ease;
+}
+
+.yt-toggle:hover {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.04);
+}
+
+.yt-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #c0392b;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.yt-toggle-icon {
+  color: #c0392b;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.yt-toggle:has(input:checked) .yt-toggle-icon {
+  opacity: 1;
+}
+
+.yt-toggle-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.yt-player-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.yt-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(192, 57, 43, 0.3);
+  background: rgba(192, 57, 43, 0.06);
+  color: #c0392b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.yt-play-btn:hover {
+  background: rgba(192, 57, 43, 0.14);
+  border-color: #c0392b;
+  transform: scale(1.1);
+}
+
+.yt-play-btn.active {
+  background: #c0392b;
+  color: #fff;
+  border-color: #c0392b;
+}
+
+.yt-play-btn.error {
+  border-color: rgba(150, 150, 150, 0.3);
+  color: #999;
+  background: rgba(150, 150, 150, 0.06);
+}
+
+.yt-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(192, 57, 43, 0.2);
+  border-top-color: #c0392b;
+  border-radius: 50%;
+  animation: yt-spin 0.6s linear infinite;
+}
+
+@keyframes yt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.yt-fallback-link {
+  font-size: 0.65rem;
+  color: #c0392b;
+  opacity: 0.6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.yt-fallback-link:hover {
+  opacity: 1;
+}
+
+.yt-player-embed {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+  animation: yt-slide-in 0.25s ease-out;
+}
+
+.yt-player-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@keyframes yt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* In choice cards (duel view) */
+.choice-card .yt-player-wrap {
+  margin: 0.5rem 0 0;
+}
+
+.choice-card .yt-play-btn {
+  opacity: 0.6;
+}
+
+.choice-card:hover .yt-play-btn {
+  opacity: 1;
+}
+
+.choice-card .yt-player-embed {
+  max-width: 100%;
+}
+
+/* In result rows */
+.result-row .yt-player-wrap {
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0.5rem;
+}
+
+.result-row .yt-play-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.result-row .yt-player-embed {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  max-width: 360px;
+  width: 360px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(184, 134, 11, 0.2);
 }
