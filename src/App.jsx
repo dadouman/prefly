@@ -11,6 +11,10 @@ import { useAuth } from "./AuthContext";
 import AuthModal from "./AuthModal";
 import HistoryPanel from "./HistoryPanel";
 import ComparisonView from "./ComparisonView";
+import TierList from "./TierList";
+import DataViz from "./DataViz";
+import AttributeEditor from "./AttributeEditor";
+import SocialCompare from "./SocialCompare";
 import { saveRanking, migrateLocalRankings } from "./rankingService";
 
 // =====================================================================
@@ -405,6 +409,7 @@ export default function App() {
   const [viewingRanking, setViewingRanking] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
   const [sortStartTime, setSortStartTime] = useState(null);
+  const [viewTab, setViewTab] = useState("ranking"); // "ranking" | "tier" | "viz" | "attrs" | "social"
   const fileRef = useRef(null);
   const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
 
@@ -570,6 +575,7 @@ export default function App() {
   // History: view ranking detail
   const handleViewRanking = (ranking) => {
     setViewingRanking(ranking);
+    setViewTab("ranking");
     setPhase("view-ranking");
   };
 
@@ -952,7 +958,7 @@ export default function App() {
 
         {/* ─────────────────────────────── VIEW RANKING DETAIL */}
         {phase === "view-ranking" && viewingRanking && (
-          <div className="fade" style={{ width: "100%", maxWidth: 640 }}>
+          <div className="fade" style={{ width: "100%", maxWidth: 700 }}>
             <div style={{ textAlign: "center", marginBottom: "2rem" }}>
               <div className="ornament" style={{ marginBottom: "0.7rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.5rem" }}>{viewingRanking.list_name}</p>
@@ -965,23 +971,62 @@ export default function App() {
               </div>
             </div>
 
-            <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
-              {(viewingRanking.result || []).map((item, i) => {
-                const name = typeof item === "string" ? item : item.item || item;
-                return (
-                  <div key={i} className="result-row" style={{ animationDelay: `${Math.min(i * 0.04, 0.6)}s` }}>
-                    <span className={`rank${i < 3 ? " top3" : ""}`}>
-                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
-                    </span>
-                    <span style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
-                      {name}
-                    </span>
-                  </div>
-                );
-              })}
+            {/* View Tabs */}
+            <div className="view-tabs">
+              {[
+                ["ranking", "📋 Classement"],
+                ["tier", "🏆 Tier List"],
+                ["viz", "📊 Data Viz"],
+                ["attrs", "🏷 Attributs"],
+                ["social", "👥 Comparer"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`view-tab${viewTab === key ? " active" : ""}`}
+                  onClick={() => setViewTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            <ComparisonView currentRanking={viewingRanking} onClose={() => {}} />
+            {/* Tab Content */}
+            {viewTab === "ranking" && (
+              <>
+                <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
+                  {(viewingRanking.result || []).map((item, i) => {
+                    const name = typeof item === "string" ? item : item.item || item;
+                    return (
+                      <div key={i} className="result-row" style={{ animationDelay: `${Math.min(i * 0.04, 0.6)}s` }}>
+                        <span className={`rank${i < 3 ? " top3" : ""}`}>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                        </span>
+                        <span style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
+                          {name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <ComparisonView currentRanking={viewingRanking} onClose={() => {}} />
+              </>
+            )}
+
+            {viewTab === "tier" && (
+              <TierList ranking={viewingRanking} />
+            )}
+
+            {viewTab === "viz" && (
+              <DataViz ranking={viewingRanking} />
+            )}
+
+            {viewTab === "attrs" && (
+              <AttributeEditor ranking={viewingRanking} />
+            )}
+
+            {viewTab === "social" && (
+              <SocialCompare ranking={viewingRanking} onClose={() => setViewTab("ranking")} />
+            )}
 
             <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap", marginTop: "1.5rem" }}>
               <button className="btn-gold" onClick={() => handleRedoRanking(viewingRanking)}>↻ Refaire ce classement</button>

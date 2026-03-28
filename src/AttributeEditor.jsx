@@ -1,0 +1,141 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "./supabaseClient";
+
+function getName(item) {
+  return typeof item === "string" ? item : item.item || String(item);
+}
+
+export default function AttributeEditor({ ranking }) {
+  const [attributes, setAttributes] = useState({}); // { itemName: { key: value } }
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [expandedItem, setExpandedItem] = useState(null);
+
+  const items = (ranking.result || []).map(getName);
+
+  // Load existing attributes
+  useEffect(() => {
+    if (!supabase || !ranking.id) { setLoading(false); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("item_attributes")
+        .select("item_name, attributes")
+        .eq("ranking_id", ranking.id);
+      if (data) {
+        const map = {};
+        data.forEach((row) => { map[row.item_name] = row.attributes || {}; });
+        setAttributes(map);
+      }
+      setLoading(false);
+    })();
+  }, [ranking.id]);
+
+  // Save a single item's attributes
+  const saveItemAttr = useCallback(async (itemName, attrs) => {
+    if (!supabase || !ranking.id) return;
+    setSaving(true);
+    await supabase
+      .from("item_attributes")
+      .upsert(
+        { ranking_id: ranking.id, item_name: itemName, attributes: attrs },
+        { onConflict: "ranking_id,item_name" }
+      );
+    setSaving(false);
+  }, [ranking.id]);
+
+  const handleChange = (itemName, key, value) => {
+    const updated = { ...attributes };
+    if (!updated[itemName]) updated[itemName] = {};
+    updated[itemName][key] = value;
+    setAttributes(updated);
+    // Debounced save
+    clearTimeout(handleChange._timeout);
+    handleChange._timeout = setTimeout(() => saveItemAttr(itemName, updated[itemName]), 600);
+  };
+
+  const handleAddKey = (itemName) => {
+    if (!newKey.trim()) return;
+    handleChange(itemName, newKey.trim(), "");
+    setNewKey("");
+  };
+
+  const handleRemoveKey = (itemName, key) => {
+    const updated = { ...attributes };
+    if (updated[itemName]) {
+      delete updated[itemName][key];
+      setAttributes({ ...updated });
+      saveItemAttr(itemName, updated[itemName]);
+    }
+  };
+
+  if (loading) return <div className="attr-loading">Chargement des attributs…</div>;
+
+  return (
+    <div className="attr-editor">
+      <div className="attr-editor-header">
+        <h3 className="attr-editor-title">Attributs des éléments</h3>
+        <p className="attr-editor-hint">
+          Ajoutez des attributs (genre, année, note…) à chaque élément.
+          {saving && <span className="attr-saving"> Sauvegarde…</span>}
+        </p>
+      </div>
+
+      <div className="attr-item-list">
+        {items.map((item, i) => {
+          const isExpanded = expandedItem === item;
+          const itemAttrs = attributes[item] || {};
+          const keys = Object.keys(itemAttrs);
+
+          return (
+            <div key={i} className={`attr-item${isExpanded ? " expanded" : ""}`}>
+              <div className="attr-item-header" onClick={() => setExpandedItem(isExpanded ? null : item)}>
+                <span className="attr-item-rank">#{i + 1}</span>
+                <span className="attr-item-name">{item}</span>
+                {keys.length > 0 && (
+                  <span className="attr-item-badge">{keys.length} attr.</span>
+                )}
+                <span className="attr-item-toggle">{isExpanded ? "▾" : "▸"}</span>
+              </div>
+
+              {isExpanded && (
+                <div className="attr-item-body">
+                  {keys.map((key) => (
+                    <div key={key} className="attr-field">
+                      <span className="attr-field-key">{key}</span>
+                      <input
+                        type="text"
+                        value={itemAttrs[key]}
+                        onChange={(e) => handleChange(item, key, e.target.value)}
+                        className="attr-field-value"
+                        placeholder="Valeur…"
+                      />
+                      <button
+                        className="attr-field-remove"
+                        onClick={() => handleRemoveKey(item, key)}
+                        title="Supprimer"
+                      >✕</button>
+                    </div>
+                  ))}
+                  <div className="attr-add-field">
+                    <input
+                      type="text"
+                      value={newKey}
+                      onChange={(e) => setNewKey(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddKey(item)}
+                      placeholder="Nouvel attribut…"
+                      className="attr-add-input"
+                    />
+                    <button className="attr-add-btn" onClick={() => handleAddKey(item)} disabled={!newKey.trim()}>
+                      + Ajouter
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
