@@ -97,6 +97,7 @@ function wikiAttributesPlugin() {
       .trim();
     const variants = [];
     const words = cleaned ? cleaned.split(/\s+/) : raw.split(/\s+/);
+    if (words.length > 4) variants.push(words.slice(0, 4).join(" "));
     if (words.length > 3) variants.push(words.slice(0, 3).join(" "));
     if (words.length > 2) variants.push(words.slice(0, 2).join(" "));
     if (cleaned && cleaned !== raw) variants.push(cleaned);
