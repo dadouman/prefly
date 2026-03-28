@@ -7,6 +7,17 @@ const WIKI_API_EN = "https://en.wikipedia.org/w/api.php";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
 const WIKIDATA_PROPS = {
+  // General
+  P31: "type",
+  P17: "pays",
+  P131: "localisation",
+  P625: "coordonnées",
+  P580: "date de début",
+  P582: "date de fin",
+  P571: "date de création",
+  P276: "lieu",
+  P921: "sujet principal",
+  // Music / Film / Art
   P136: "genre",
   P577: "date de sortie",
   P57: "réalisateur",
@@ -18,7 +29,7 @@ const WIKIDATA_PROPS = {
   P86: "compositeur",
   P162: "producteur",
   P2047: "durée",
-  P31: "type",
+  // People
   P106: "profession",
   P27: "nationalité",
   P569: "date de naissance",
@@ -26,10 +37,24 @@ const WIKIDATA_PROPS = {
   P413: "poste",
   P54: "équipe",
   P641: "sport",
+  // Books
   P50: "auteur",
   P123: "éditeur",
   P407: "langue",
-  P921: "sujet principal",
+  // Sport / Circuits / Events
+  P1535: "utilisé pour",
+  P2043: "longueur",
+  P1083: "capacité",
+  P1619: "date d'ouverture",
+  P840: "lieu de l'action",
+  P710: "participant",
+  P1346: "vainqueur",
+  P859: "sponsor",
+  // Food / Drink
+  P186: "matériau",
+  P176: "fabricant",
+  P127: "propriétaire",
+  P138: "nommé d'après",
 };
 
 async function safeFetch(url, timeoutMs = 5000) {
@@ -43,6 +68,32 @@ async function safeFetch(url, timeoutMs = 5000) {
     clearTimeout(timer);
     return null;
   }
+}
+
+// Clean a query string to extract the most meaningful search term
+// E.g. "Hungaroring Budapest Hongrie 24-26 juillet" → ["Hungaroring Budapest", "Hungaroring"]
+function buildSearchVariants(raw) {
+  // Remove date patterns: "24-26 juillet", "3 mars 2024", "2024", "12/06", etc.
+  let cleaned = raw
+    .replace(/\d{1,2}[-–]\d{1,2}\s+\w+/g, "")   // "24-26 juillet"
+    .replace(/\d{1,2}\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}/gi, "") // "3 mars 2024"
+    .replace(/\b(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\b/gi, "") // standalone months
+    .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/gi, "")
+    .replace(/\b\d{4}\b/g, "")                     // standalone years "2024"
+    .replace(/\b\d{1,2}[\/\-.]\d{1,2}([\/\-.]\d{2,4})?\b/g, "") // dates like 12/06, 12-06-2024
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const variants = [];
+  if (cleaned && cleaned !== raw.trim()) variants.push(cleaned);
+
+  // Also try just the first word(s) — often the proper noun
+  const words = cleaned ? cleaned.split(/\s+/) : raw.trim().split(/\s+/);
+  if (words.length > 2) variants.push(words.slice(0, 2).join(" "));
+  if (words.length > 1) variants.push(words[0]);
+
+  // Always include the original as first attempt
+  return [raw.trim(), ...variants.filter((v) => v && v !== raw.trim())];
 }
 
 async function searchWikipedia(query, apiBase) {
@@ -163,16 +214,23 @@ export default async function handler(req, res) {
   }
 
   const query = q.trim();
+  const variants = buildSearchVariants(query);
 
   try {
-    let pageTitle = await searchWikipedia(query, WIKI_API_FR);
+    let pageTitle = null;
     let lang = "fr";
     let apiBase = WIKI_API_FR;
 
+    // Try each variant on FR Wikipedia, then EN
+    for (const variant of variants) {
+      pageTitle = await searchWikipedia(variant, WIKI_API_FR);
+      if (pageTitle) { lang = "fr"; apiBase = WIKI_API_FR; break; }
+    }
     if (!pageTitle) {
-      pageTitle = await searchWikipedia(query, WIKI_API_EN);
-      lang = "en";
-      apiBase = WIKI_API_EN;
+      for (const variant of variants) {
+        pageTitle = await searchWikipedia(variant, WIKI_API_EN);
+        if (pageTitle) { lang = "en"; apiBase = WIKI_API_EN; break; }
+      }
     }
 
     if (!pageTitle) {
