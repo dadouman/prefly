@@ -8,7 +8,7 @@ function getName(item) {
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {
   try {
-    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}&v=5`, {
+    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}&v=6`, {
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
@@ -130,7 +130,7 @@ export default function AttributeEditor({ ranking }) {
           Ajoutez des attributs (genre, année, note…) à chaque élément.
           {saving && <span className="attr-saving"> Sauvegarde…</span>}
         </p>
-        <p style={{ fontSize: "0.55rem", color: "var(--text-faint)", opacity: 0.5 }}>v5</p>
+        <p style={{ fontSize: "0.55rem", color: "var(--text-faint)", opacity: 0.5 }}>v6</p>
         <div className="attr-auto-search-all">
           <button
             className="attr-auto-search-all-btn"

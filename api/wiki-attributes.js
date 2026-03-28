@@ -57,11 +57,13 @@ const WIKIDATA_PROPS = {
   P138: "nommé d'après",
 };
 
+const FETCH_HEADERS = { "User-Agent": "Prefly/1.0 (https://prefly.vercel.app; contact@prefly.app)" };
+
 async function safeFetch(url, timeoutMs = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, headers: FETCH_HEADERS });
     clearTimeout(timer);
     return res;
   } catch {
@@ -102,8 +104,8 @@ function buildSearchVariants(raw) {
 }
 
 async function searchWikipedia(query, apiBase) {
-  const url = `${apiBase}?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=1&format=json&origin=*`;
-  const res = await safeFetch(url, 5000);
+  const url = `${apiBase}?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=1&format=json`;
+  const res = await safeFetch(url, 4000);
   if (!res?.ok) return null;
   const data = await res.json();
   return data?.query?.search?.[0]?.title || null;
@@ -111,7 +113,7 @@ async function searchWikipedia(query, apiBase) {
 
 async function getWikidataId(pageTitle, lang) {
   const apiBase = lang === "fr" ? WIKI_API_FR : WIKI_API_EN;
-  const url = `${apiBase}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageprops&ppprop=wikibase_item&format=json&origin=*`;
+  const url = `${apiBase}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageprops&ppprop=wikibase_item&format=json`;
   const res = await safeFetch(url, 5000);
   if (!res?.ok) return null;
   const data = await res.json();
@@ -127,8 +129,8 @@ async function batchResolveLabels(entityIds) {
   const labels = {};
   for (let i = 0; i < unique.length; i += 50) {
     const batch = unique.slice(i, i + 50);
-    const url = `${WIKIDATA_API}?action=wbgetentities&ids=${batch.join("|")}&props=labels&languages=fr|en&format=json&origin=*`;
-    const res = await safeFetch(url, 6000);
+    const url = `${WIKIDATA_API}?action=wbgetentities&ids=${batch.join("|")}&props=labels&languages=fr|en&format=json`;
+    const res = await safeFetch(url, 10000);
     if (!res?.ok) continue;
     const data = await res.json();
     const entities = data?.entities || {};
@@ -141,8 +143,8 @@ async function batchResolveLabels(entityIds) {
 
 // Two-pass approach: collect entity IDs, batch resolve, then build attrs
 async function getWikidataAttributes(entityId) {
-  const url = `${WIKIDATA_API}?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
-  const res = await safeFetch(url, 6000);
+  const url = `${WIKIDATA_API}?action=wbgetentities&ids=${entityId}&props=claims&format=json`;
+  const res = await safeFetch(url, 8000);
   if (!res?.ok) return {};
   const data = await res.json();
   const entity = data?.entities?.[entityId];
@@ -203,7 +205,7 @@ async function getWikidataAttributes(entityId) {
 }
 
 async function getWikiExtract(pageTitle, apiBase) {
-  const url = `${apiBase}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json&origin=*`;
+  const url = `${apiBase}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts&exintro=1&explaintext=1&exsentences=2&format=json`;
   const res = await safeFetch(url, 4000);
   if (!res?.ok) return null;
   const data = await res.json();
@@ -211,6 +213,8 @@ async function getWikiExtract(pageTitle, apiBase) {
   if (!pages) return null;
   return Object.values(pages)[0]?.extract || null;
 }
+
+export const config = { maxDuration: 25 };
 
 export default async function handler(req, res) {
   const { q } = req.query;
