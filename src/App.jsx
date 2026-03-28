@@ -409,6 +409,7 @@ export default function App() {
   const [showComparison, setShowComparison] = useState(false);
   const [sortStartTime, setSortStartTime] = useState(null);
   const [pendingItemAttributes, setPendingItemAttributes] = useState(null);
+  const [selectedListId, setSelectedListId] = useState(null);
   const fileRef = useRef(null);
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
@@ -505,7 +506,7 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setListName(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); setLastSavedRanking(null); setShowComparison(false); setViewingRanking(null); };
+  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setListName(null); setSelectedListId(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); setLastSavedRanking(null); setShowComparison(false); setViewingRanking(null); };
 
   const handlePause = () => {
     savePausedSession({ sortState, count, total, listFormat, inputText, youtubeLinks });
@@ -535,6 +536,7 @@ export default function App() {
     setInputText(list.items.join("\n"));
     setListFormat(list.format || null);
     setListName(list.name || null);
+    setSelectedListId(list.id || null);
     setPendingItemAttributes(list.itemAttributes && Object.keys(list.itemAttributes).length > 0 ? list.itemAttributes : null);
   };
 
@@ -545,7 +547,7 @@ export default function App() {
       saveRanking({
         userId: user?.id,
         listName: listName || "Sans titre",
-        listId: null,
+        listId: selectedListId || null,
         mode: "classic",
         items: parsedItems,
         result: sorted,
@@ -572,7 +574,7 @@ export default function App() {
     saveRanking({
       userId: user?.id,
       listName: listName || "Sans titre",
-      listId: null,
+      listId: selectedListId || null,
       mode: "bracket",
       items: bracketItems || parsedItems,
       result: [champion],

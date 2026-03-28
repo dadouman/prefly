@@ -10,6 +10,7 @@ import {
   setAdminPin,
   verifyAdminPin,
 } from "./storage";
+import { supabase } from "./supabaseClient";
 
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {
@@ -120,10 +121,34 @@ function AdminLogin({ onLogin, onBack }) {
   );
 }
 
+// Format an item label for preview (mirrors App.jsx ItemLabel logic)
+function PreviewItemLabel({ item, format }) {
+  if (format === "discography") {
+    const first = item.indexOf(" - ");
+    if (first !== -1) {
+      const song = item.substring(0, first);
+      const rest = item.substring(first + 3);
+      const ld = rest.lastIndexOf(" - ");
+      const albumYear = ld !== -1
+        ? rest.substring(0, ld) + " · " + rest.substring(ld + 3)
+        : rest;
+      return (
+        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35em" }}>
+          <span className="disco-song" style={{ fontWeight: 700 }}>{song}</span>
+          <span className="disco-meta" style={{ fontSize: "0.6em", color: "#a0936b" }}>{albumYear}</span>
+        </span>
+      );
+    }
+  }
+  return <>{item}</>;
+}
+
 function ListEditor({ list, onSave, onCancel }) {
   const [name, setName] = useState(list?.name || "");
   const [description, setDescription] = useState(list?.description || "");
   const [itemsText, setItemsText] = useState(list?.items?.join("\n") || "");
+  const [format, setFormat] = useState(list?.format || "");
+  const [showPreview, setShowPreview] = useState(false);
   const [itemAttributes, setItemAttributes] = useState(list?.itemAttributes || {}); // { itemName: { key: value } }
   const [showAttrs, setShowAttrs] = useState(false);
   const [searchingAll, setSearchingAll] = useState(null); // { done, total } | null
@@ -134,9 +159,31 @@ function ListEditor({ list, onSave, onCancel }) {
   const items = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
   const itemCount = items.length;
 
+  // Auto-format: clean up items for consistency
+  const handleAutoFormat = () => {
+    const lines = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
+    const formatted = lines.map((line) => {
+      if (format === "discography") {
+        // Normalize separators: replace " – ", " — ", " | " with " - "
+        let clean = line
+          .replace(/\s*[–—]\s*/g, " - ")
+          .replace(/\s*\|\s*/g, " - ");
+        // Capitalize first letter of each segment
+        clean = clean.split(" - ").map((seg) =>
+          seg.trim().replace(/^\w/, (c) => c.toUpperCase())
+        ).join(" - ");
+        return clean;
+      }
+      // Default: trim and capitalize first letter
+      return line.trim().replace(/^\w/, (c) => c.toUpperCase());
+    });
+    setItemsText(formatted.join("\n"));
+  };
+
   const handleSave = () => {
     if (!name.trim() || items.length < 2) return;
     const data = { name: name.trim(), description: description.trim(), items };
+    if (format) data.format = format;
     // Only include itemAttributes if there are any
     if (Object.keys(itemAttributes).length > 0) {
       data.itemAttributes = itemAttributes;
@@ -379,13 +426,61 @@ export default function AdminPanel({ onBack }) {
 
   const editingList = editing && editing !== "new" ? lists.find((l) => l.id === editing) : null;
 
+  // Sync item attributes to ALL existing rankings linked to this list
+  const syncAttributesToRankings = async (listId, itemAttributes) => {
+    if (!supabase || !listId) return;
+    try {
+      // Find all rankings linked to this list
+      const { data: rankings, error } = await supabase
+        .from("rankings")
+        .select("id")
+        .eq("list_id", listId);
+      if (error || !rankings || rankings.length === 0) return;
+
+      // Build upsert rows: for each ranking, insert/update all item attributes
+      const rows = [];
+      for (const ranking of rankings) {
+        for (const [itemName, attrs] of Object.entries(itemAttributes)) {
+          if (attrs && Object.keys(attrs).length > 0) {
+            rows.push({ ranking_id: ranking.id, item_name: itemName, attributes: attrs });
+          }
+        }
+      }
+      if (rows.length > 0) {
+        await supabase.from("item_attributes").upsert(rows, { onConflict: "ranking_id,item_name" });
+      }
+    } catch { /* silent — admin will see attributes locally regardless */ }
+  };
+
+  // Sync list name change to all linked rankings
+  const syncListNameToRankings = async (listId, newName) => {
+    if (!supabase || !listId || !newName) return;
+    try {
+      await supabase
+        .from("rankings")
+        .update({ list_name: newName })
+        .eq("list_id", listId);
+    } catch { /* silent */ }
+  };
+
   const handleSaveNew = async (data) => {
-    setLists(await addPrebuiltList(data));
+    const updatedLists = await addPrebuiltList(data);
+    setLists(updatedLists);
+    // New list — sync attributes if any (the new list just got an ID)
+    if (data.itemAttributes && Object.keys(data.itemAttributes).length > 0) {
+      const newList = updatedLists[updatedLists.length - 1];
+      await syncAttributesToRankings(newList.id, data.itemAttributes);
+    }
     setEditing(null);
   };
 
   const handleSaveEdit = async (data) => {
     setLists(await updatePrebuiltList(editing, data));
+    // Sync all modifications to existing rankings for this list
+    await syncListNameToRankings(editing, data.name);
+    if (data.itemAttributes && Object.keys(data.itemAttributes).length > 0) {
+      await syncAttributesToRankings(editing, data.itemAttributes);
+    }
     setEditing(null);
   };
 
