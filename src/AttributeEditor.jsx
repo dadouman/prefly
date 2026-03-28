@@ -90,7 +90,9 @@ export default function AttributeEditor({ ranking }) {
   // Auto-search Wikipedia attributes for a single item
   const handleAutoSearch = useCallback(async (itemName) => {
     setSearching((s) => ({ ...s, [itemName]: true }));
+    console.log("[wiki-search] searching for:", itemName);
     const result = await fetchWikiAttributes(itemName);
+    console.log("[wiki-search] result for", itemName, ":", result);
     if (result && result.attributes) {
       setAttributes((prev) => {
         // Replace entirely with new Wikipedia data
