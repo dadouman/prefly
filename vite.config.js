@@ -49,7 +49,7 @@ function ytSearchPlugin() {
   };
 }
 
-// Wikipedia/Wikidata attribute search proxy plugin
+// Wikipedia/Wikidata attribute search proxy plugin (batched label resolution)
 function wikiAttributesPlugin() {
   const WIKI_API_FR = "https://fr.wikipedia.org/w/api.php";
   const WIKI_API_EN = "https://en.wikipedia.org/w/api.php";
@@ -67,8 +67,7 @@ function wikiAttributesPlugin() {
   async function searchWikipedia(query, apiBase) {
     const url = `${apiBase}?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=1&format=json&origin=*`;
     const r = await fetch(url); if (!r.ok) return null;
-    const d = await r.json(); const results = d?.query?.search;
-    return results?.length > 0 ? results[0].title : null;
+    const d = await r.json(); return d?.query?.search?.[0]?.title || null;
   }
 
   async function getWikidataId(pageTitle, lang) {
@@ -79,35 +78,47 @@ function wikiAttributesPlugin() {
     return pages ? Object.values(pages)[0]?.pageprops?.wikibase_item || null : null;
   }
 
-  async function resolveEntityLabel(entityId) {
-    try {
-      const url = `${WIKIDATA_API}?action=wbgetentities&ids=${entityId}&props=labels&languages=fr|en&format=json&origin=*`;
-      const r = await fetch(url); if (!r.ok) return entityId;
-      const d = await r.json(); const entity = d?.entities?.[entityId];
-      return entity?.labels?.fr?.value || entity?.labels?.en?.value || entityId;
-    } catch { return entityId; }
+  async function batchResolveLabels(entityIds) {
+    if (entityIds.length === 0) return {};
+    const unique = [...new Set(entityIds)]; const labels = {};
+    for (let i = 0; i < unique.length; i += 50) {
+      const batch = unique.slice(i, i + 50);
+      const url = `${WIKIDATA_API}?action=wbgetentities&ids=${batch.join("|")}&props=labels&languages=fr|en&format=json&origin=*`;
+      const r = await fetch(url); if (!r.ok) continue;
+      const d = await r.json();
+      for (const [id, entity] of Object.entries(d?.entities || {})) {
+        labels[id] = entity?.labels?.fr?.value || entity?.labels?.en?.value || id;
+      }
+    }
+    return labels;
   }
 
   async function getWikidataAttributes(entityId) {
-    const url = `${WIKIDATA_API}?action=wbgetentities&ids=${entityId}&props=claims|labels&languages=fr|en&format=json&origin=*`;
+    const url = `${WIKIDATA_API}?action=wbgetentities&ids=${entityId}&props=claims&format=json&origin=*`;
     const r = await fetch(url); if (!r.ok) return {};
     const d = await r.json(); const entity = d?.entities?.[entityId];
     if (!entity) return {};
-    const claims = entity.claims || {}; const attrs = {};
+    const claims = entity.claims || {};
+    const entityIdsToResolve = new Set(); const rawValues = {};
     for (const [propId, attrName] of Object.entries(WIKIDATA_PROPS)) {
-      const propClaims = claims[propId];
-      if (!propClaims?.length) continue;
-      const values = [];
-      for (const claim of propClaims.slice(0, 5)) {
+      const propClaims = claims[propId]; if (!propClaims?.length) continue;
+      rawValues[attrName] = [];
+      for (const claim of propClaims.slice(0, 4)) {
         const ms = claim.mainsnak; if (!ms || ms.snaktype !== "value") continue;
         const dv = ms.datavalue; if (!dv) continue;
-        if (dv.type === "wikibase-entityid") { const l = await resolveEntityLabel(dv.value.id); if (l) values.push(l); }
-        else if (dv.type === "time") { const y = dv.value.time?.match(/\+?(\d{4})/)?.[1]; if (y) values.push(y); }
-        else if (dv.type === "quantity") { const a = dv.value.amount?.replace("+", ""); values.push(a); }
-        else if (dv.type === "string") values.push(dv.value);
-        else if (dv.type === "monolingualtext") values.push(dv.value.text);
+        if (dv.type === "wikibase-entityid") { entityIdsToResolve.add(dv.value.id); rawValues[attrName].push({ type: "entity", id: dv.value.id }); }
+        else if (dv.type === "time") { const y = dv.value.time?.match(/\+?(\d{4})/)?.[1]; if (y) rawValues[attrName].push({ type: "literal", value: y }); }
+        else if (dv.type === "quantity") { const a = dv.value.amount?.replace("+", ""); rawValues[attrName].push({ type: "literal", value: a }); }
+        else if (dv.type === "string") rawValues[attrName].push({ type: "literal", value: dv.value });
+        else if (dv.type === "monolingualtext") rawValues[attrName].push({ type: "literal", value: dv.value.text });
       }
-      if (values.length > 0) attrs[attrName] = values.join(", ");
+    }
+    const labels = await batchResolveLabels([...entityIdsToResolve]);
+    const attrs = {};
+    for (const [attrName, items] of Object.entries(rawValues)) {
+      const values = items.map(item => item.type === "entity" ? (labels[item.id] || item.id) : item.value).filter(Boolean);
+      const unique = [...new Set(values)];
+      if (unique.length > 0) attrs[attrName] = unique.join(", ");
     }
     return attrs;
   }
@@ -132,10 +143,9 @@ function wikiAttributesPlugin() {
           let lang = "fr", apiBase = WIKI_API_FR;
           if (!pageTitle) { pageTitle = await searchWikipedia(query, WIKI_API_EN); lang = "en"; apiBase = WIKI_API_EN; }
           if (!pageTitle) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ attributes: {}, source: null })); }
-          const wikidataId = await getWikidataId(pageTitle, lang);
+          const [wikidataId, extract] = await Promise.all([getWikidataId(pageTitle, lang), getWikiExtract(pageTitle, apiBase)]);
           let attributes = {};
           if (wikidataId) attributes = await getWikidataAttributes(wikidataId);
-          const extract = await getWikiExtract(pageTitle, apiBase);
           if (extract) attributes["description"] = extract;
           const wikiUrl = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
           res.writeHead(200, { 'Content-Type': 'application/json' });
