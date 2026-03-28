@@ -72,7 +72,6 @@ export default function RankingDetail() {
           ["ranking", "📋 Classement"],
           ["tier", "🏆 Tier List"],
           ["viz", "📊 Data Viz"],
-          ["filter", "🔍 Filtrer"],
           ["attrs", "🏷 Attributs"],
           ["social", "👥 Comparer"],
         ].map(([key, label]) => (
@@ -88,6 +87,12 @@ export default function RankingDetail() {
 
       {viewTab === "ranking" && (
         <>
+          <FilterBar ranking={ranking} onFilteredResult={setFilteredItems} />
+          {filteredItems && filteredItems.length !== (ranking.result || []).length && (
+            <p style={{ fontSize: "0.72rem", color: "var(--gold)", textAlign: "center", margin: "0.3rem 0 0.6rem", letterSpacing: "0.05em" }}>
+              {filteredItems.length} / {(ranking.result || []).length} éléments affichés
+            </p>
+          )}
           <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
             {displayItems.map((item, i) => {
               const name = typeof item === "string" ? item : getName(item);
@@ -109,7 +114,6 @@ export default function RankingDetail() {
 
       {viewTab === "tier" && <TierList ranking={ranking} />}
       {viewTab === "viz" && <DataViz ranking={ranking} />}
-      {viewTab === "filter" && <FilterBar ranking={ranking} onFilteredResult={setFilteredItems} />}
       {viewTab === "attrs" && <AttributeEditor ranking={ranking} />}
       {viewTab === "social" && <SocialCompare ranking={ranking} onClose={() => setViewTab("ranking")} />}
 

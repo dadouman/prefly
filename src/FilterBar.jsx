@@ -79,11 +79,7 @@ export default function FilterBar({ ranking, onFilteredResult }) {
   }, [filterKey, filterValue, sortKey, sortDir, items, attributes]);
 
   if (allKeys.length === 0) {
-    return (
-      <div className="filterbar-empty">
-        <p>Aucun attribut défini. Ajoutez des attributs dans l'onglet 🏷 Attributs pour filtrer et trier.</p>
-      </div>
-    );
+    return null;
   }
 
   return (
