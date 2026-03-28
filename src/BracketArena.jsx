@@ -365,11 +365,16 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
       if (!next) {
         const finalWinner = newRounds[newRounds.length - 1][0]?.winner;
         if (finalWinner) {
-          setTimeout(() => setChampion(finalWinner), 200);
+          setTimeout(() => {
+            setChampion(finalWinner);
+            if (onFinish) {
+              onFinish({ champion: finalWinner, resolvedMatches: countResolvedMatches(newRounds), items });
+            }
+          }, 200);
         }
       }
     }, 500);
-  }, [chosen, currentMatch, rounds]);
+  }, [chosen, currentMatch, rounds, onFinish, items]);
 
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;

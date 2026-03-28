@@ -6,6 +6,12 @@ import BracketArena from "./BracketArena";
 import "./BracketArena.css";
 import { savePausedSession, loadPausedSession, clearPausedSession } from "./storage";
 import { fetchItemImages, dismissImage } from "./imageSearch";
+import ShareCard from "./ShareCard";
+import { useAuth } from "./AuthContext";
+import AuthModal from "./AuthModal";
+import HistoryPanel from "./HistoryPanel";
+import ComparisonView from "./ComparisonView";
+import { saveRanking, migrateLocalRankings } from "./rankingService";
 
 // =====================================================================
 // YOUTUBE SEARCH HELPERS
@@ -393,7 +399,14 @@ export default function App() {
   const [youtubeLinks, setYoutubeLinks] = useState(false);
   const [imageMap, setImageMap] = useState(new Map());
   const [loadingImages, setLoadingImages] = useState(false);
+  const [listName, setListName] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [lastSavedRanking, setLastSavedRanking] = useState(null);
+  const [viewingRanking, setViewingRanking] = useState(null);
+  const [showComparison, setShowComparison] = useState(false);
+  const [sortStartTime, setSortStartTime] = useState(null);
   const fileRef = useRef(null);
+  const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
 
   // Dismiss an image and cycle to the next Wikipedia result
   const handleDismissImage = useCallback((term) => {
@@ -408,6 +421,13 @@ export default function App() {
   // Load any saved paused session on mount
   useEffect(() => { setPausedSession(loadPausedSession()); }, []);
 
+  // Migrate local rankings to Supabase when user logs in
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      migrateLocalRankings(user.id).catch(() => {});
+    }
+  }, [isAuthenticated, user?.id]);
+
   const parsedItems = parseInput(inputText);
   const comparison = sortState && !sortState.done ? getComparison(sortState) : null;
   const progress = total > 0 ? Math.min(100, (count / total) * 100) : 0;
@@ -417,6 +437,7 @@ export default function App() {
 
   const handleStart = async () => {
     if (parsedItems.length < 2) return;
+    setSortStartTime(Date.now());
     // Fetch images in background
     setLoadingImages(true);
     fetchItemImages(parsedItems).then((map) => {
@@ -478,7 +499,7 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); };
+  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setListName(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); setLastSavedRanking(null); setShowComparison(false); setViewingRanking(null); };
 
   const handlePause = () => {
     savePausedSession({ sortState, count, total, listFormat, inputText, youtubeLinks });
@@ -507,10 +528,101 @@ export default function App() {
   const handleSelectPrebuilt = (list) => {
     setInputText(list.items.join("\n"));
     setListFormat(list.format || null);
+    setListName(list.name || null);
+  };
+
+  // Auto-save ranking when classic sort completes
+  useEffect(() => {
+    if (phase === "result" && sorted.length > 0 && !lastSavedRanking) {
+      const duration = sortStartTime ? Math.round((Date.now() - sortStartTime) / 1000) : null;
+      saveRanking({
+        userId: user?.id,
+        listName: listName || "Sans titre",
+        listId: null,
+        mode: "classic",
+        items: parsedItems,
+        result: sorted,
+        comparisonsCount: count,
+        durationSeconds: duration,
+      }).then((saved) => {
+        setLastSavedRanking(saved);
+      }).catch(() => {});
+    }
+  }, [phase, sorted.length]);
+
+  // Handle bracket finish (called from BracketArena)
+  const handleBracketFinish = useCallback(({ champion, resolvedMatches, items: bracketItems }) => {
+    const duration = sortStartTime ? Math.round((Date.now() - sortStartTime) / 1000) : null;
+    saveRanking({
+      userId: user?.id,
+      listName: listName || "Sans titre",
+      listId: null,
+      mode: "bracket",
+      items: bracketItems || parsedItems,
+      result: [champion],
+      comparisonsCount: resolvedMatches,
+      durationSeconds: duration,
+    }).then((saved) => {
+      setLastSavedRanking(saved);
+    }).catch(() => {});
+  }, [user?.id, listName, parsedItems, sortStartTime]);
+
+  // History: view ranking detail
+  const handleViewRanking = (ranking) => {
+    setViewingRanking(ranking);
+    setPhase("view-ranking");
+  };
+
+  // History: redo a ranking
+  const handleRedoRanking = (ranking) => {
+    const items = ranking.items || [];
+    setInputText(items.join("\n"));
+    setListName(ranking.list_name);
+    setListFormat(null);
+    setPhase("input");
   };
 
   return (
     <>
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+
+      {/* ─── USER HEADER BAR ─── */}
+      <div className="user-header-bar">
+        <div className="user-header-left">
+          {phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "view-ranking" && (
+            <button className="user-header-home" onClick={reset} title="Accueil">⌂</button>
+          )}
+        </div>
+        <div className="user-header-right">
+          {isAuthenticated && (
+            <button
+              className="user-header-history-btn"
+              onClick={() => setPhase("history")}
+              title="Historique"
+            >
+              📋 Historique
+            </button>
+          )}
+          {!isAuthenticated && !authLoading && (
+            <button className="user-header-history-btn" onClick={() => setPhase("history")} title="Historique local">
+              📋 Historique
+            </button>
+          )}
+          {isAuthenticated ? (
+            <div className="user-header-profile">
+              <span className="user-header-pseudo">{profile?.pseudo || "Utilisateur"}</span>
+              <button className="user-header-logout" onClick={signOut} title="Déconnexion">
+                Déconnexion
+              </button>
+            </div>
+          ) : (
+            <button className="user-header-login-btn" onClick={() => setShowAuthModal(true)}>
+              Connexion
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="root">
 
         {/* ─────────────────────────────── ADMIN */}
@@ -767,6 +879,7 @@ export default function App() {
             format={listFormat}
             imageMap={imageMap}
             onDismissImage={handleDismissImage}
+            onFinish={handleBracketFinish}
             onReset={reset}
           />
         )}
@@ -800,10 +913,79 @@ export default function App() {
 
             <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn-gold" onClick={() => exportCSV(sorted, listFormat)}>↓ &nbsp;Exporter CSV</button>
+              {lastSavedRanking && (
+                <button className="btn-ghost" onClick={() => setShowComparison(true)}>📊 Comparer</button>
+              )}
               {sortHistory.length > 0 && (
                 <button className="bracket-undo-btn" onClick={handleSortUndo}>↩ Revenir en arrière</button>
               )}
               <button className="btn-ghost" onClick={reset}>Nouveau Tournoi</button>
+            </div>
+
+            {showComparison && lastSavedRanking && (
+              <div style={{ marginTop: "1.5rem" }}>
+                <ComparisonView currentRanking={lastSavedRanking} onClose={() => setShowComparison(false)} />
+              </div>
+            )}
+
+            {!isAuthenticated && (
+              <div className="save-prompt">
+                <p>💾 Créez un compte pour sauvegarder vos classements et les comparer !</p>
+                <button className="btn-gold" onClick={() => setShowAuthModal(true)} style={{ fontSize: "0.8rem", padding: "0.5rem 1.2rem" }}>
+                  Créer un compte
+                </button>
+              </div>
+            )}
+
+            <ShareCard sorted={sorted} listName={listName} />
+          </div>
+        )}
+
+        {/* ─────────────────────────────── HISTORY */}
+        {phase === "history" && (
+          <HistoryPanel
+            onBack={() => setPhase("input")}
+            onViewRanking={handleViewRanking}
+            onRedoRanking={handleRedoRanking}
+          />
+        )}
+
+        {/* ─────────────────────────────── VIEW RANKING DETAIL */}
+        {phase === "view-ranking" && viewingRanking && (
+          <div className="fade" style={{ width: "100%", maxWidth: 640 }}>
+            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+              <div className="ornament" style={{ marginBottom: "0.7rem" }}>✦ ✦ ✦</div>
+              <p className="subtitle" style={{ marginBottom: "0.5rem" }}>{viewingRanking.list_name}</p>
+              <h2 className="logo" style={{ fontSize: "clamp(1.5rem, 4vw, 2.2rem)" }}>Détail du classement</h2>
+              <div style={{ marginTop: "0.9rem", display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                <span className="badge">{viewingRanking.mode === "bracket" ? "⚔ Bracket" : "📊 Classement"}</span>
+                <span className="badge">{viewingRanking.items?.length || "?"} éléments</span>
+                <span className="badge">{viewingRanking.comparisons_count} duels</span>
+                <span className="badge">{new Date(viewingRanking.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</span>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: "1.2rem 1.5rem", marginBottom: "1.5rem", maxHeight: "55vh", overflowY: "auto" }}>
+              {(viewingRanking.result || []).map((item, i) => {
+                const name = typeof item === "string" ? item : item.item || item;
+                return (
+                  <div key={i} className="result-row" style={{ animationDelay: `${Math.min(i * 0.04, 0.6)}s` }}>
+                    <span className={`rank${i < 3 ? " top3" : ""}`}>
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                    </span>
+                    <span style={{ fontSize: "0.95rem", fontWeight: i < 3 ? 600 : 400, color: i < 3 ? "var(--text)" : "var(--text-dim)", flex: 1 }}>
+                      {name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <ComparisonView currentRanking={viewingRanking} onClose={() => {}} />
+
+            <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap", marginTop: "1.5rem" }}>
+              <button className="btn-gold" onClick={() => handleRedoRanking(viewingRanking)}>↻ Refaire ce classement</button>
+              <button className="btn-ghost" onClick={() => setPhase("history")}>← Historique</button>
             </div>
           </div>
         )}
