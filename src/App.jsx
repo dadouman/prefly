@@ -15,6 +15,7 @@ import ComparisonView from "./ComparisonView";
 import PublicProfile from "./PublicProfile";
 import RankingDetail from "./RankingDetail";
 import { saveRanking, migrateLocalRankings } from "./rankingService";
+import { supabase } from "./supabaseClient";
 
 // =====================================================================
 // YOUTUBE SEARCH HELPERS
@@ -407,6 +408,7 @@ export default function App() {
   const [lastSavedRanking, setLastSavedRanking] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
   const [sortStartTime, setSortStartTime] = useState(null);
+  const [pendingItemAttributes, setPendingItemAttributes] = useState(null);
   const fileRef = useRef(null);
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
@@ -533,6 +535,7 @@ export default function App() {
     setInputText(list.items.join("\n"));
     setListFormat(list.format || null);
     setListName(list.name || null);
+    setPendingItemAttributes(list.itemAttributes && Object.keys(list.itemAttributes).length > 0 ? list.itemAttributes : null);
   };
 
   // Auto-save ranking when classic sort completes
@@ -548,8 +551,17 @@ export default function App() {
         result: sorted,
         comparisonsCount: count,
         durationSeconds: duration,
-      }).then((saved) => {
+      }).then(async (saved) => {
         setLastSavedRanking(saved);
+        if (saved?.id && pendingItemAttributes && supabase) {
+          const rows = Object.entries(pendingItemAttributes)
+            .filter(([, attrs]) => attrs && Object.keys(attrs).length > 0)
+            .map(([itemName, attrs]) => ({ ranking_id: saved.id, item_name: itemName, attributes: attrs }));
+          if (rows.length > 0) {
+            await supabase.from("item_attributes").upsert(rows, { onConflict: "ranking_id,item_name" });
+          }
+          setPendingItemAttributes(null);
+        }
       }).catch(() => {});
     }
   }, [phase, sorted.length]);
@@ -566,8 +578,17 @@ export default function App() {
       result: [champion],
       comparisonsCount: resolvedMatches,
       durationSeconds: duration,
-    }).then((saved) => {
+    }).then(async (saved) => {
       setLastSavedRanking(saved);
+      if (saved?.id && pendingItemAttributes && supabase) {
+        const rows = Object.entries(pendingItemAttributes)
+          .filter(([, attrs]) => attrs && Object.keys(attrs).length > 0)
+          .map(([itemName, attrs]) => ({ ranking_id: saved.id, item_name: itemName, attributes: attrs }));
+        if (rows.length > 0) {
+          await supabase.from("item_attributes").upsert(rows, { onConflict: "ranking_id,item_name" });
+        }
+        setPendingItemAttributes(null);
+      }
     }).catch(() => {});
   }, [user?.id, listName, parsedItems, sortStartTime]);
 
