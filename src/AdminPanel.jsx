@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getPrebuiltLists,
   addPrebuiltList,
@@ -10,6 +10,22 @@ import {
   setAdminPin,
   verifyAdminPin,
 } from "./storage";
+
+// Fetch attributes from Wikipedia/Wikidata for a single item
+async function fetchWikiAttributes(itemName) {
+  try {
+    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.attributes && Object.keys(data.attributes).length > 0
+      ? data.attributes
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function AdminLogin({ onLogin, onBack }) {
   const [pin, setPin] = useState("");
@@ -108,17 +124,78 @@ function ListEditor({ list, onSave, onCancel }) {
   const [name, setName] = useState(list?.name || "");
   const [description, setDescription] = useState(list?.description || "");
   const [itemsText, setItemsText] = useState(list?.items?.join("\n") || "");
+  const [itemAttributes, setItemAttributes] = useState(list?.itemAttributes || {}); // { itemName: { key: value } }
+  const [showAttrs, setShowAttrs] = useState(false);
+  const [searchingAll, setSearchingAll] = useState(null); // { done, total } | null
+  const [searchingItem, setSearchingItem] = useState({}); // { itemName: true }
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [newAttrKey, setNewAttrKey] = useState("");
+
+  const items = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const itemCount = items.length;
 
   const handleSave = () => {
-    const items = itemsText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
     if (!name.trim() || items.length < 2) return;
-    onSave({ name: name.trim(), description: description.trim(), items });
+    const data = { name: name.trim(), description: description.trim(), items };
+    // Only include itemAttributes if there are any
+    if (Object.keys(itemAttributes).length > 0) {
+      data.itemAttributes = itemAttributes;
+    }
+    onSave(data);
   };
 
-  const itemCount = itemsText.split("\n").map((l) => l.trim()).filter(Boolean).length;
+  // Search Wikipedia attributes for one item
+  const handleSearchItem = useCallback(async (itemName) => {
+    setSearchingItem((s) => ({ ...s, [itemName]: true }));
+    const attrs = await fetchWikiAttributes(itemName);
+    if (attrs) {
+      setItemAttributes((prev) => {
+        const existing = prev[itemName] || {};
+        return { ...prev, [itemName]: { ...attrs, ...existing } };
+      });
+    }
+    setSearchingItem((s) => ({ ...s, [itemName]: false }));
+  }, []);
+
+  // Search Wikipedia attributes for ALL items
+  const handleSearchAll = useCallback(async () => {
+    const currentItems = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (currentItems.length === 0) return;
+    setSearchingAll({ done: 0, total: currentItems.length });
+    for (let i = 0; i < currentItems.length; i++) {
+      await handleSearchItem(currentItems[i]);
+      setSearchingAll({ done: i + 1, total: currentItems.length });
+    }
+    setSearchingAll(null);
+    setShowAttrs(true);
+  }, [itemsText, handleSearchItem]);
+
+  // Manual attribute edit
+  const handleAttrChange = (itemName, key, value) => {
+    setItemAttributes((prev) => ({
+      ...prev,
+      [itemName]: { ...(prev[itemName] || {}), [key]: value },
+    }));
+  };
+
+  const handleRemoveAttr = (itemName, key) => {
+    setItemAttributes((prev) => {
+      const updated = { ...(prev[itemName] || {}) };
+      delete updated[key];
+      const next = { ...prev, [itemName]: updated };
+      if (Object.keys(updated).length === 0) delete next[itemName];
+      return next;
+    });
+  };
+
+  const handleAddAttr = (itemName) => {
+    if (!newAttrKey.trim()) return;
+    handleAttrChange(itemName, newAttrKey.trim(), "");
+    setNewAttrKey("");
+  };
+
+  const attrCount = Object.values(itemAttributes).reduce((sum, a) => sum + Object.keys(a).length, 0);
+  const itemsWithAttrs = Object.keys(itemAttributes).filter((k) => Object.keys(itemAttributes[k] || {}).length > 0).length;
 
   return (
     <div className="card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
@@ -158,6 +235,116 @@ function ListEditor({ list, onSave, onCancel }) {
           </p>
         )}
       </div>
+
+      {/* ─── ATTRIBUTE SEARCH SECTION ─── */}
+      {itemCount >= 2 && (
+        <div className="admin-attr-section">
+          <div className="admin-attr-header">
+            <span className="label" style={{ margin: 0 }}>🔍 Attributs Wikipedia</span>
+            {attrCount > 0 && (
+              <span className="admin-attr-badge">{itemsWithAttrs}/{itemCount} éléments · {attrCount} attributs</span>
+            )}
+          </div>
+
+          <div className="admin-attr-actions">
+            <button
+              className="btn-gold"
+              onClick={handleSearchAll}
+              disabled={!!searchingAll}
+              style={{ fontSize: "0.78rem", padding: "0.45rem 0.9rem" }}
+            >
+              {searchingAll
+                ? `🔄 ${searchingAll.done}/${searchingAll.total}…`
+                : "🔍 Rechercher attributs pour tous"}
+            </button>
+            {attrCount > 0 && (
+              <button
+                className="btn-ghost"
+                onClick={() => setShowAttrs(!showAttrs)}
+                style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem" }}
+              >
+                {showAttrs ? "▾ Masquer" : "▸ Voir les attributs"}
+              </button>
+            )}
+          </div>
+
+          {showAttrs && items.length > 0 && (
+            <div className="admin-attr-list">
+              {items.map((item) => {
+                const attrs = itemAttributes[item] || {};
+                const keys = Object.keys(attrs);
+                const isExpanded = expandedItem === item;
+
+                return (
+                  <div key={item} className={`admin-attr-item${isExpanded ? " expanded" : ""}`}>
+                    <div
+                      className="admin-attr-item-header"
+                      onClick={() => setExpandedItem(isExpanded ? null : item)}
+                    >
+                      <span className="admin-attr-item-name">{item}</span>
+                      {keys.length > 0 && (
+                        <span className="admin-attr-item-count">{keys.length} attr.</span>
+                      )}
+                      {searchingItem[item] && <span className="admin-attr-spinner">🔄</span>}
+                      <button
+                        className="admin-attr-search-btn"
+                        onClick={(e) => { e.stopPropagation(); handleSearchItem(item); }}
+                        disabled={searchingItem[item]}
+                        title="Rechercher sur Wikipedia"
+                      >
+                        🔍
+                      </button>
+                      <span style={{ color: "var(--text-faint)", fontSize: "0.7rem" }}>{isExpanded ? "▾" : "▸"}</span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="admin-attr-item-body">
+                        {keys.filter((k) => k !== "description" && k !== "source Wikipedia").map((key) => (
+                          <div key={key} className="admin-attr-field">
+                            <span className="admin-attr-field-key">{key}</span>
+                            <input
+                              type="text"
+                              className="admin-attr-field-value"
+                              value={attrs[key]}
+                              onChange={(e) => handleAttrChange(item, key, e.target.value)}
+                              placeholder="Valeur…"
+                            />
+                            <button
+                              className="admin-attr-field-remove"
+                              onClick={() => handleRemoveAttr(item, key)}
+                            >✕</button>
+                          </div>
+                        ))}
+                        {/* description displayed separately if present */}
+                        {attrs.description && (
+                          <div className="admin-attr-description">
+                            {attrs.description.slice(0, 150)}{attrs.description.length > 150 ? "…" : ""}
+                          </div>
+                        )}
+                        <div className="admin-attr-add">
+                          <input
+                            type="text"
+                            className="admin-attr-add-input"
+                            value={expandedItem === item ? newAttrKey : ""}
+                            onChange={(e) => setNewAttrKey(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddAttr(item)}
+                            placeholder="Nouvel attribut…"
+                          />
+                          <button
+                            className="admin-attr-add-btn"
+                            onClick={() => handleAddAttr(item)}
+                            disabled={!newAttrKey.trim()}
+                          >+</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: "0.8rem" }}>
         <button
@@ -251,6 +438,11 @@ export default function AdminPanel({ onBack }) {
                   )}
                   <div style={{ fontSize: "0.7rem", color: "var(--text-faint)", letterSpacing: "0.05em" }}>
                     {list.items.length} élément{list.items.length > 1 ? "s" : ""}
+                    {list.itemAttributes && Object.keys(list.itemAttributes).length > 0 && (
+                      <span style={{ color: "var(--gold)", marginLeft: "0.4rem" }}>
+                        · 🔍 {Object.keys(list.itemAttributes).length} avec attributs
+                      </span>
+                    )}
                     <span style={{ margin: "0 0.4rem", opacity: 0.4 }}>·</span>
                     {list.items.slice(0, 3).join(", ")}
                     {list.items.length > 3 && "…"}

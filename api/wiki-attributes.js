@@ -89,11 +89,12 @@ function buildSearchVariants(raw) {
 
   const variants = [];
 
-  // Prioritize: first word alone (often the unique proper noun), then first 2 words, then cleaned, then full raw
+  // Prioritize: first 2 words (best disambiguation), then first 3, then cleaned, then first word, then full raw
   const words = cleaned ? cleaned.split(/\s+/) : raw.split(/\s+/);
-  if (words.length > 1) variants.push(words[0]);
   if (words.length > 2) variants.push(words.slice(0, 2).join(" "));
+  if (words.length > 3) variants.push(words.slice(0, 3).join(" "));
   if (cleaned && cleaned !== raw) variants.push(cleaned);
+  if (words.length > 1) variants.push(words[0]);
   variants.push(raw);
 
   // Deduplicate while preserving order

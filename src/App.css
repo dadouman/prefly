@@ -712,6 +712,215 @@ textarea::placeholder {
   50% { opacity: 0.7; }
 }
 
+/* ─── Admin: Attribute search section ─── */
+.admin-attr-section {
+  background: rgba(184, 134, 11, 0.03);
+  border: 1px solid rgba(184, 134, 11, 0.15);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.admin-attr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.admin-attr-badge {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.65rem;
+  color: var(--gold);
+  background: rgba(184, 134, 11, 0.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+}
+
+.admin-attr-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.admin-attr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.admin-attr-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.admin-attr-item.expanded {
+  border-color: rgba(184, 134, 11, 0.3);
+}
+
+.admin-attr-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-attr-item-header:hover {
+  background: rgba(184, 134, 11, 0.03);
+}
+
+.admin-attr-item-name {
+  flex: 1;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-attr-item-count {
+  font-size: 0.62rem;
+  color: var(--gold);
+  background: rgba(184, 134, 11, 0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+}
+
+.admin-attr-spinner {
+  animation: attr-spin 1s linear infinite;
+  font-size: 0.72rem;
+}
+
+.admin-attr-search-btn {
+  background: none;
+  border: 1px solid rgba(184, 134, 11, 0.2);
+  border-radius: 4px;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.admin-attr-search-btn:hover:not(:disabled) {
+  background: rgba(184, 134, 11, 0.08);
+  border-color: var(--gold);
+}
+
+.admin-attr-search-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-attr-item-body {
+  padding: 0.4rem 0.6rem 0.6rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.admin-attr-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-attr-field-key {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.68rem;
+  color: var(--gold);
+  min-width: 80px;
+  font-weight: 600;
+}
+
+.admin-attr-field-value {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.7rem;
+  background: transparent;
+  color: var(--text);
+}
+
+.admin-attr-field-value:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.admin-attr-field-remove {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.65rem;
+  padding: 0.15rem;
+}
+
+.admin-attr-field-remove:hover { color: #c0392b; }
+
+.admin-attr-description {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  font-style: italic;
+  line-height: 1.5;
+  padding: 0.3rem 0;
+  border-top: 1px dashed var(--border);
+}
+
+.admin-attr-add {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.admin-attr-add-input {
+  flex: 1;
+  padding: 0.2rem 0.4rem;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.68rem;
+  background: transparent;
+  color: var(--text);
+}
+
+.admin-attr-add-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.admin-attr-add-btn {
+  background: none;
+  border: 1px solid rgba(184, 134, 11, 0.25);
+  color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.admin-attr-add-btn:hover:not(:disabled) {
+  background: rgba(184, 134, 11, 0.08);
+}
+
+.admin-attr-add-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Paused session card */
 .paused-card {
   display: flex;

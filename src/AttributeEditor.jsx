@@ -8,7 +8,7 @@ function getName(item) {
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {
   try {
-    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}&v=3`, {
+    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}&v=4`, {
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
