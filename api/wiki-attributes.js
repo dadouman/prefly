@@ -253,7 +253,7 @@ export default async function handler(req, res) {
 
     const wikiUrl = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
 
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate");
+    res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=600");
     return res.status(200).json({
       attributes,
       source: wikiUrl,
