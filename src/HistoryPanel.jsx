@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { getUserRankings, deleteRanking } from "./rankingService";
+import CSVImport from "./CSVImport";
 
 export default function HistoryPanel({ onBack, onViewRanking, onRedoRanking }) {
   const { user } = useAuth();
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ mode: "all", search: "" });
+  const [showCSVImport, setShowCSVImport] = useState(false);
 
   const loadRankings = useCallback(async () => {
     setLoading(true);
@@ -154,9 +156,17 @@ export default function HistoryPanel({ onBack, onViewRanking, onRedoRanking }) {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "center", gap: "0.8rem", marginTop: "1.5rem" }}>
         <button className="btn-ghost" onClick={onBack}>← Retour</button>
+        <button className="btn-gold" onClick={() => setShowCSVImport(true)} style={{ fontSize: "0.8rem" }}>📄 Importer CSV</button>
       </div>
+
+      {showCSVImport && (
+        <CSVImport
+          onClose={() => setShowCSVImport(false)}
+          onImported={() => { setShowCSVImport(false); loadRankings(); }}
+        />
+      )}
     </div>
   );
 }

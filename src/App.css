@@ -2037,3 +2037,93 @@ textarea::placeholder {
   color: var(--text-faint);
   font-size: 1.1em;
 }
+
+/* =====================================================================
+   CSV IMPORT MODAL
+   ===================================================================== */
+
+.csv-import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.csv-import-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem 1.8rem;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.csv-import-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Raleway', sans-serif;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+
+.csv-import-dropzone:hover {
+  border-color: var(--gold);
+  background: rgba(184, 134, 11, 0.03);
+}
+
+.csv-import-preview {
+  margin-top: 1rem;
+}
+
+.csv-import-count {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.78rem;
+  color: var(--gold);
+  font-weight: 600;
+  margin: 0.6rem 0;
+  text-align: center;
+}
+
+.csv-import-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.csv-import-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  color: var(--text-dim);
+}
+
+.csv-import-item:last-child {
+  border-bottom: none;
+}
+
+.csv-import-rank {
+  font-weight: 700;
+  color: var(--gold);
+  font-size: 0.72rem;
+  min-width: 2rem;
+  font-family: 'Cinzel', serif;
+}
