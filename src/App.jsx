@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Routes, Route, useNavigate, Link } from "react-router-dom";
 import "./App.css";
 import AdminPanel from "./AdminPanel";
 import ListSelector from "./ListSelector";
@@ -15,6 +16,8 @@ import TierList from "./TierList";
 import DataViz from "./DataViz";
 import AttributeEditor from "./AttributeEditor";
 import SocialCompare from "./SocialCompare";
+import PublicProfile from "./PublicProfile";
+import RankingDetail from "./RankingDetail";
 import { saveRanking, migrateLocalRankings } from "./rankingService";
 
 // =====================================================================
@@ -411,7 +414,9 @@ export default function App() {
   const [sortStartTime, setSortStartTime] = useState(null);
   const [viewTab, setViewTab] = useState("ranking"); // "ranking" | "tier" | "viz" | "attrs" | "social"
   const fileRef = useRef(null);
+  const navigate = useNavigate();
   const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
+  const isAnonymous = user?.is_anonymous || user?.email?.endsWith("@prefly.app");
 
   // Dismiss an image and cycle to the next Wikipedia result
   const handleDismissImage = useCallback((term) => {
@@ -596,30 +601,34 @@ export default function App() {
       <div className="user-header-bar">
         <div className="user-header-left">
           {phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "view-ranking" && (
-            <button className="user-header-home" onClick={reset} title="Accueil">⌂</button>
+            <button className="user-header-home" onClick={() => { reset(); navigate("/"); }} title="Accueil">⌂</button>
           )}
         </div>
         <div className="user-header-right">
-          {isAuthenticated && (
-            <button
-              className="user-header-history-btn"
-              onClick={() => setPhase("history")}
-              title="Historique"
-            >
-              📋 Historique
-            </button>
-          )}
-          {!isAuthenticated && !authLoading && (
-            <button className="user-header-history-btn" onClick={() => setPhase("history")} title="Historique local">
-              📋 Historique
-            </button>
-          )}
+          <button
+            className="user-header-history-btn"
+            onClick={() => setPhase("history")}
+            title="Historique"
+          >
+            📋 Historique
+          </button>
           {isAuthenticated ? (
             <div className="user-header-profile">
-              <span className="user-header-pseudo">{profile?.pseudo || "Utilisateur"}</span>
-              <button className="user-header-logout" onClick={signOut} title="Déconnexion">
-                Déconnexion
-              </button>
+              {profile?.pseudo && (
+                <Link to={`/profile/${encodeURIComponent(profile.pseudo)}`} className="user-header-pseudo" title="Mon profil public">
+                  {profile.pseudo}
+                </Link>
+              )}
+              {!profile?.pseudo && <span className="user-header-pseudo">Utilisateur</span>}
+              {isAnonymous ? (
+                <button className="user-header-upgrade-btn" onClick={() => setShowAuthModal(true)} title="Sauvegarder mon compte">
+                  🔒 Créer un vrai compte
+                </button>
+              ) : (
+                <button className="user-header-logout" onClick={signOut} title="Déconnexion">
+                  Déconnexion
+                </button>
+              )}
             </div>
           ) : (
             <button className="user-header-login-btn" onClick={() => setShowAuthModal(true)}>
@@ -629,6 +638,10 @@ export default function App() {
         </div>
       </div>
 
+      <Routes>
+        <Route path="/profile/:pseudo" element={<PublicProfile />} />
+        <Route path="/ranking/:id" element={<RankingDetail />} />
+        <Route path="*" element={
       <div className="root">
 
         {/* ─────────────────────────────── ADMIN */}
@@ -1036,6 +1049,8 @@ export default function App() {
         )}
 
       </div>
+        } />
+      </Routes>
     </>
   );
 }

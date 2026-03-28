@@ -2539,6 +2539,70 @@ textarea::placeholder {
   cursor: default;
 }
 
+/* Auto-search Wikipedia styles */
+.attr-auto-search-all {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.attr-auto-search-all-btn {
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.15), rgba(184, 134, 11, 0.05));
+  border: 1px solid rgba(184, 134, 11, 0.3);
+  color: var(--gold);
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.attr-auto-search-all-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.25), rgba(184, 134, 11, 0.1));
+  box-shadow: 0 0 12px rgba(184, 134, 11, 0.15);
+}
+
+.attr-auto-search-all-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.attr-search-progress {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.attr-auto-search {
+  margin-bottom: 0.5rem;
+}
+
+.attr-auto-search-btn {
+  background: none;
+  border: 1px solid rgba(184, 134, 11, 0.25);
+  color: var(--gold);
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.attr-auto-search-btn:hover:not(:disabled) {
+  background: rgba(184, 134, 11, 0.08);
+}
+
+.attr-auto-search-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* =====================================================================
    SOCIAL COMPARE
    ===================================================================== */

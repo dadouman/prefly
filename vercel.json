@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/yt-search", "destination": "/api/yt-search" },
+    { "source": "/api/wiki-attributes", "destination": "/api/wiki-attributes" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

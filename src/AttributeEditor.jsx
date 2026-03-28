@@ -5,12 +5,30 @@ function getName(item) {
   return typeof item === "string" ? item : item.item || String(item);
 }
 
+// Fetch attributes from Wikipedia/Wikidata for a single item
+async function fetchWikiAttributes(itemName) {
+  try {
+    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.attributes && Object.keys(data.attributes).length > 0
+      ? { attributes: data.attributes, source: data.source, title: data.title }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function AttributeEditor({ ranking }) {
   const [attributes, setAttributes] = useState({}); // { itemName: { key: value } }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [expandedItem, setExpandedItem] = useState(null);
+  const [searching, setSearching] = useState({}); // { itemName: true/false }
+  const [searchAllProgress, setSearchAllProgress] = useState(null); // { done, total } or null
 
   const items = (ranking.result || []).map(getName);
 
@@ -69,6 +87,36 @@ export default function AttributeEditor({ ranking }) {
     }
   };
 
+  // Auto-search Wikipedia attributes for a single item
+  const handleAutoSearch = useCallback(async (itemName) => {
+    setSearching((s) => ({ ...s, [itemName]: true }));
+    const result = await fetchWikiAttributes(itemName);
+    if (result && result.attributes) {
+      setAttributes((prev) => {
+        const existing = prev[itemName] || {};
+        // Merge: keep existing values, add new ones from Wikipedia
+        const merged = { ...result.attributes, ...existing };
+        if (result.source) merged["source Wikipedia"] = result.source;
+        // Save to DB
+        saveItemAttr(itemName, merged);
+        return { ...prev, [itemName]: merged };
+      });
+    }
+    setSearching((s) => ({ ...s, [itemName]: false }));
+    return result;
+  }, [saveItemAttr]);
+
+  // Auto-search attributes for ALL items
+  const handleAutoSearchAll = useCallback(async () => {
+    const total = items.length;
+    setSearchAllProgress({ done: 0, total });
+    for (let i = 0; i < items.length; i++) {
+      await handleAutoSearch(items[i]);
+      setSearchAllProgress({ done: i + 1, total });
+    }
+    setSearchAllProgress(null);
+  }, [items, handleAutoSearch]);
+
   if (loading) return <div className="attr-loading">Chargement des attributs…</div>;
 
   return (
@@ -79,6 +127,20 @@ export default function AttributeEditor({ ranking }) {
           Ajoutez des attributs (genre, année, note…) à chaque élément.
           {saving && <span className="attr-saving"> Sauvegarde…</span>}
         </p>
+        <div className="attr-auto-search-all">
+          <button
+            className="attr-auto-search-all-btn"
+            onClick={handleAutoSearchAll}
+            disabled={!!searchAllProgress}
+          >
+            🔍 Rechercher les attributs pour tous
+          </button>
+          {searchAllProgress && (
+            <span className="attr-search-progress">
+              {searchAllProgress.done}/{searchAllProgress.total} traités…
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="attr-item-list">
@@ -100,6 +162,15 @@ export default function AttributeEditor({ ranking }) {
 
               {isExpanded && (
                 <div className="attr-item-body">
+                  <div className="attr-auto-search">
+                    <button
+                      className="attr-auto-search-btn"
+                      onClick={(e) => { e.stopPropagation(); handleAutoSearch(item); }}
+                      disabled={searching[item]}
+                    >
+                      {searching[item] ? "🔄 Recherche…" : "🔍 Rechercher sur Wikipedia"}
+                    </button>
+                  </div>
                   {keys.map((key) => (
                     <div key={key} className="attr-field">
                       <span className="attr-field-key">{key}</span>
