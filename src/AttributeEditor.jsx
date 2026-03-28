@@ -130,6 +130,7 @@ export default function AttributeEditor({ ranking }) {
           Ajoutez des attributs (genre, année, note…) à chaque élément.
           {saving && <span className="attr-saving"> Sauvegarde…</span>}
         </p>
+        <p style={{ fontSize: "0.55rem", color: "var(--text-faint)", opacity: 0.5 }}>v3</p>
         <div className="attr-auto-search-all">
           <button
             className="attr-auto-search-all-btn"
