@@ -155,6 +155,7 @@ function ListEditor({ list, onSave, onCancel }) {
   const [searchingItem, setSearchingItem] = useState({}); // { itemName: true }
   const [expandedItem, setExpandedItem] = useState(null);
   const [newAttrKey, setNewAttrKey] = useState("");
+  const [newColName, setNewColName] = useState("");
 
   const items = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
   const itemCount = items.length;
@@ -163,10 +164,11 @@ function ListEditor({ list, onSave, onCancel }) {
   const handleAutoFormat = () => {
     const lines = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
     const formatted = lines.map((line) => {
-      // Normalize tabs and multiple spaces into single spaces
-      let clean = line.replace(/\t/g, " ").replace(/ {2,}/g, " ").trim();
+      let clean;
       if (format === "discography") {
-        // Normalize separators: replace " – ", " — ", " | " with " - "
+        // In discography mode, tabs become " - " separators
+        clean = line.replace(/\t+/g, " - ").replace(/ {2,}/g, " ").trim();
+        // Normalize other separators: replace " – ", " — ", " | " with " - "
         clean = clean
           .replace(/\s*[–—]\s*/g, " - ")
           .replace(/\s*\|\s*/g, " - ");
@@ -241,6 +243,33 @@ function ListEditor({ list, onSave, onCancel }) {
     if (!newAttrKey.trim()) return;
     handleAttrChange(itemName, newAttrKey.trim(), "");
     setNewAttrKey("");
+  };
+
+  // Add a new column (attribute key) to all items
+  const handleAddColumn = () => {
+    if (!newColName.trim() || allAttrKeys.includes(newColName.trim())) return;
+    const key = newColName.trim();
+    setItemAttributes((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        next[item] = { ...(next[item] || {}), [key]: "" };
+      });
+      return next;
+    });
+    setNewColName("");
+  };
+
+  // Remove an entire column (attribute key) from all items
+  const handleRemoveColumn = (key) => {
+    setItemAttributes((prev) => {
+      const next = {};
+      for (const [item, attrs] of Object.entries(prev)) {
+        const updated = { ...attrs };
+        delete updated[key];
+        if (Object.keys(updated).length > 0) next[item] = updated;
+      }
+      return next;
+    });
   };
 
   const attrCount = Object.values(itemAttributes).reduce((sum, a) => sum + Object.keys(a).length, 0);
@@ -359,7 +388,7 @@ function ListEditor({ list, onSave, onCancel }) {
         </div>
       )}
 
-      {/* ─── ATTRIBUTE SEARCH SECTION ─── */}
+      {/* ─── ATTRIBUTE TABLE SECTION ─── */}
       {itemCount >= 2 && (
         <div className="admin-attr-section">
           <div className="admin-attr-header">
@@ -381,136 +410,98 @@ function ListEditor({ list, onSave, onCancel }) {
                   onClick={() => setShowAttrs(!showAttrs)}
                   style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem" }}
                 >
-                  {showAttrs ? "▾ Masquer" : "▸ Détails"}
+                  {showAttrs ? "▾ Masquer tableau" : "▸ Voir tableau"}
                 </button>
               )}
             </div>
           </div>
 
-          {/* ─── COVERAGE DASHBOARD ─── */}
+          {/* ─── COVERAGE STATS ─── */}
           {attrCount > 0 && (
-            <div className="admin-attr-dashboard">
-              <div className="admin-attr-stat">
-                <div className="admin-attr-stat-value">{itemsWithAttrs}<span className="admin-attr-stat-dim">/{itemCount}</span></div>
-                <div className="admin-attr-stat-label">éléments enrichis</div>
-              </div>
-              <div className="admin-attr-stat">
-                <div className="admin-attr-stat-value">{attrCount}</div>
-                <div className="admin-attr-stat-label">attributs total</div>
-              </div>
-              <div className="admin-attr-stat">
-                <div className="admin-attr-stat-value">{allAttrKeys.length}</div>
-                <div className="admin-attr-stat-label">clés uniques</div>
-              </div>
+            <div className="admin-attr-stats-row">
+              <span className="admin-attr-stat-chip">{itemsWithAttrs}/{itemCount} enrichis</span>
+              <span className="admin-attr-stat-chip">{attrCount} valeurs</span>
+              <span className="admin-attr-stat-chip">{allAttrKeys.length} colonnes</span>
               <div className="admin-attr-coverage-bar">
                 <div className="admin-attr-coverage-fill" style={{ width: `${Math.round((itemsWithAttrs / itemCount) * 100)}%` }} />
               </div>
             </div>
           )}
 
-          {/* ─── ATTRIBUTE KEYS OVERVIEW ─── */}
-          {attrCount > 0 && allAttrKeys.length > 0 && (
-            <div className="admin-attr-keys-row">
-              {allAttrKeys.map((key) => {
-                const keyCount = items.filter((it) => itemAttributes[it]?.[key]).length;
-                return (
-                  <span key={key} className="admin-attr-key-chip">
-                    {key} <span className="admin-attr-key-chip-count">{keyCount}</span>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ─── ITEMS LIST ─── */}
+          {/* ─── TABLE VIEW ─── */}
           {showAttrs && items.length > 0 && (
-            <div className="admin-attr-list">
-              {items.map((item) => {
-                const attrs = itemAttributes[item] || {};
-                const keys = Object.keys(attrs).filter((k) => k !== "description" && k !== "source Wikipedia");
-                const hasAttrs = keys.length > 0;
-                const isExpanded = expandedItem === item;
-                const isSearching = searchingItem[item];
-
-                return (
-                  <div key={item} className={`admin-attr-item${isExpanded ? " expanded" : ""}${hasAttrs ? " has-attrs" : ""}${isSearching ? " searching" : ""}`}>
-                    <div
-                      className="admin-attr-item-header"
-                      onClick={() => setExpandedItem(isExpanded ? null : item)}
-                    >
-                      <span className={`admin-attr-item-dot${hasAttrs ? " filled" : ""}`} />
-                      <span className="admin-attr-item-name">{item}</span>
-
-                      {/* Inline tag preview when collapsed */}
-                      {!isExpanded && hasAttrs && (
-                        <div className="admin-attr-tags-preview">
-                          {keys.slice(0, 3).map((k) => (
-                            <span key={k} className="admin-attr-tag">{k}: <strong>{String(attrs[k]).slice(0, 20)}</strong></span>
-                          ))}
-                          {keys.length > 3 && <span className="admin-attr-tag more">+{keys.length - 3}</span>}
+            <div className="admin-attr-table-wrap">
+              <table className="admin-attr-table">
+                <thead>
+                  <tr>
+                    <th className="admin-attr-th-item">Élément</th>
+                    {allAttrKeys.map((key) => (
+                      <th key={key} className="admin-attr-th">
+                        <div className="admin-attr-th-inner">
+                          <span className="admin-attr-th-label">{key}</span>
+                          <button
+                            className="admin-attr-th-remove"
+                            onClick={() => handleRemoveColumn(key)}
+                            title={`Supprimer la colonne "${key}"`}
+                          >✕</button>
                         </div>
-                      )}
-
-                      {isSearching && <span className="admin-attr-spinner" />}
-                      <button
-                        className="admin-attr-search-btn"
-                        onClick={(e) => { e.stopPropagation(); handleSearchItem(item); }}
-                        disabled={isSearching}
-                        title="Rechercher sur Wikipedia"
-                      >
-                        🔍
-                      </button>
-                      <span className="admin-attr-chevron">{isExpanded ? "▾" : "▸"}</span>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="admin-attr-item-body">
-                        {keys.length === 0 && (
-                          <div className="admin-attr-empty">Aucun attribut — cliquez 🔍 pour rechercher</div>
-                        )}
-                        {keys.map((key) => (
-                          <div key={key} className="admin-attr-field">
-                            <span className="admin-attr-field-key">{key}</span>
+                      </th>
+                    ))}
+                    <th className="admin-attr-th-add">
+                      <div className="admin-attr-add-col">
+                        <input
+                          type="text"
+                          className="admin-attr-add-col-input"
+                          value={newColName}
+                          onChange={(e) => setNewColName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddColumn()}
+                          placeholder="+ colonne…"
+                        />
+                        <button
+                          className="admin-attr-add-col-btn"
+                          onClick={handleAddColumn}
+                          disabled={!newColName.trim() || allAttrKeys.includes(newColName.trim())}
+                        >+</button>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => {
+                    const attrs = itemAttributes[item] || {};
+                    const isSearching = searchingItem[item];
+                    return (
+                      <tr key={item} className={isSearching ? "admin-attr-row-searching" : ""}>
+                        <td className="admin-attr-td-item">
+                          <div className="admin-attr-td-item-inner">
+                            <span className="admin-attr-item-name">{item}</span>
+                            <button
+                              className="admin-attr-search-btn"
+                              onClick={() => handleSearchItem(item)}
+                              disabled={isSearching}
+                              title="Rechercher sur Wikipedia"
+                            >
+                              {isSearching ? <span className="admin-attr-spinner" /> : "🔍"}
+                            </button>
+                          </div>
+                        </td>
+                        {allAttrKeys.map((key) => (
+                          <td key={key} className="admin-attr-td">
                             <input
                               type="text"
-                              className="admin-attr-field-value"
-                              value={attrs[key]}
+                              className={`admin-attr-cell${attrs[key] ? " filled" : ""}`}
+                              value={attrs[key] || ""}
                               onChange={(e) => handleAttrChange(item, key, e.target.value)}
-                              placeholder="Valeur…"
+                              placeholder="—"
                             />
-                            <button
-                              className="admin-attr-field-remove"
-                              onClick={() => handleRemoveAttr(item, key)}
-                              title="Supprimer"
-                            >✕</button>
-                          </div>
+                          </td>
                         ))}
-                        {attrs.description && (
-                          <div className="admin-attr-description">
-                            <span className="admin-attr-description-icon">📝</span>
-                            {attrs.description.slice(0, 200)}{attrs.description.length > 200 ? "…" : ""}
-                          </div>
-                        )}
-                        <div className="admin-attr-add">
-                          <input
-                            type="text"
-                            className="admin-attr-add-input"
-                            value={expandedItem === item ? newAttrKey : ""}
-                            onChange={(e) => setNewAttrKey(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleAddAttr(item)}
-                            placeholder="+ Ajouter un attribut…"
-                          />
-                          <button
-                            className="admin-attr-add-btn"
-                            onClick={() => handleAddAttr(item)}
-                            disabled={!newAttrKey.trim()}
-                          >+</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        <td className="admin-attr-td-empty" />
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -618,7 +609,7 @@ export default function AdminPanel({ onBack }) {
   };
 
   return (
-    <div className="fade" style={{ width: "100%", maxWidth: 560 }}>
+    <div className="fade" style={{ width: "100%", maxWidth: editing ? 900 : 560 }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <div className="ornament" style={{ marginBottom: "0.7rem" }}>⚙ ⚙ ⚙</div>
         <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Administration</p>

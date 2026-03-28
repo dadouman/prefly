@@ -713,7 +713,7 @@ textarea::placeholder {
 }
 
 /* ─── Admin: Attribute search section ─── */
-/* ─── Admin: Attribute Section ─── */
+/* ─── Admin: Attribute Table Section ─── */
 .admin-attr-section {
   background: rgba(184, 134, 11, 0.03);
   border: 1px solid rgba(184, 134, 11, 0.15);
@@ -738,52 +738,32 @@ textarea::placeholder {
   align-items: center;
 }
 
-/* ─── Coverage Dashboard ─── */
-.admin-attr-dashboard {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.6rem;
-  padding: 0.7rem 0.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  position: relative;
+/* ─── Stats Row ─── */
+.admin-attr-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.admin-attr-stat {
-  text-align: center;
-}
-
-.admin-attr-stat-value {
+.admin-attr-stat-chip {
   font-family: 'Raleway', sans-serif;
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 0.65rem;
+  font-weight: 600;
   color: var(--gold);
-  line-height: 1.2;
-}
-
-.admin-attr-stat-dim {
-  font-size: 0.85rem;
-  font-weight: 400;
-  color: var(--text-faint);
-}
-
-.admin-attr-stat-label {
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.62rem;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 0.15rem;
+  background: rgba(184, 134, 11, 0.08);
+  padding: 0.2rem 0.55rem;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
 }
 
 .admin-attr-coverage-bar {
-  grid-column: 1 / -1;
+  flex: 1;
+  min-width: 60px;
   height: 4px;
   background: rgba(184, 134, 11, 0.1);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 0.2rem;
 }
 
 .admin-attr-coverage-fill {
@@ -793,172 +773,220 @@ textarea::placeholder {
   transition: width 0.4s ease;
 }
 
-/* ─── Attribute Keys Chips ─── */
-.admin-attr-keys-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+/* ─── Table Wrapper ─── */
+.admin-attr-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
-.admin-attr-key-chip {
-  display: inline-flex;
+.admin-attr-table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.admin-attr-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.admin-attr-table-wrap::-webkit-scrollbar-thumb { background: rgba(184, 134, 11, 0.2); border-radius: 3px; }
+
+/* ─── Table ─── */
+.admin-attr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.72rem;
+  table-layout: auto;
+}
+
+/* ─── Table Header ─── */
+.admin-attr-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.admin-attr-th-item,
+.admin-attr-th,
+.admin-attr-th-add {
+  background: rgba(184, 134, 11, 0.06);
+  border-bottom: 2px solid rgba(184, 134, 11, 0.2);
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.68rem;
+  color: var(--gold);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+}
+
+.admin-attr-th-item {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: rgba(184, 134, 11, 0.08);
+  min-width: 160px;
+  max-width: 220px;
+  border-right: 2px solid rgba(184, 134, 11, 0.15);
+}
+
+.admin-attr-th {
+  min-width: 110px;
+  max-width: 180px;
+}
+
+.admin-attr-th-inner {
+  display: flex;
   align-items: center;
+  gap: 0.4rem;
+}
+
+.admin-attr-th-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-attr-th-remove {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 0.6rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.admin-attr-th:hover .admin-attr-th-remove {
+  opacity: 1;
+}
+
+.admin-attr-th-remove:hover {
+  color: #c0392b;
+  background: rgba(192, 57, 43, 0.08);
+}
+
+.admin-attr-th-add {
+  min-width: 130px;
+  background: transparent;
+  border-bottom-color: var(--border);
+}
+
+/* ─── Add Column ─── */
+.admin-attr-add-col {
+  display: flex;
   gap: 0.3rem;
+  align-items: center;
+}
+
+.admin-attr-add-col-input {
+  width: 80px;
+  padding: 0.25rem 0.4rem;
+  border: 1px dashed rgba(184, 134, 11, 0.25);
+  border-radius: 4px;
   font-family: 'Raleway', sans-serif;
   font-size: 0.65rem;
-  color: var(--text-dim);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 0.2rem 0.55rem;
-  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  transition: border-color 0.15s;
 }
 
-.admin-attr-key-chip-count {
-  font-size: 0.58rem;
-  font-weight: 700;
+.admin-attr-add-col-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  border-style: solid;
+}
+
+.admin-attr-add-col-btn {
+  background: none;
+  border: 1px solid rgba(184, 134, 11, 0.25);
   color: var(--gold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.admin-attr-add-col-btn:hover:not(:disabled) {
   background: rgba(184, 134, 11, 0.1);
-  padding: 0.05rem 0.3rem;
-  border-radius: 8px;
-  min-width: 1.1rem;
-  text-align: center;
 }
 
-/* ─── Items List ─── */
-.admin-attr-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 0.2rem;
+.admin-attr-add-col-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
-.admin-attr-list::-webkit-scrollbar { width: 4px; }
-.admin-attr-list::-webkit-scrollbar-track { background: transparent; }
-.admin-attr-list::-webkit-scrollbar-thumb { background: rgba(184, 134, 11, 0.2); border-radius: 2px; }
-
-.admin-attr-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+/* ─── Table Body ─── */
+.admin-attr-table tbody tr {
+  transition: background 0.15s;
 }
 
-.admin-attr-item.has-attrs {
-  border-left: 3px solid rgba(184, 134, 11, 0.35);
+.admin-attr-table tbody tr:hover {
+  background: rgba(184, 134, 11, 0.025);
 }
 
-.admin-attr-item.expanded {
-  border-color: rgba(184, 134, 11, 0.4);
-  box-shadow: 0 2px 8px rgba(184, 134, 11, 0.06);
+.admin-attr-table tbody tr:nth-child(even) {
+  background: rgba(184, 134, 11, 0.015);
 }
 
-.admin-attr-item.searching {
-  border-color: rgba(184, 134, 11, 0.3);
+.admin-attr-table tbody tr:nth-child(even):hover {
+  background: rgba(184, 134, 11, 0.04);
+}
+
+.admin-attr-row-searching {
   animation: admin-attr-pulse 1.5s ease infinite;
 }
 
 @keyframes admin-attr-pulse {
-  0%, 100% { background: var(--surface); }
-  50% { background: rgba(184, 134, 11, 0.04); }
+  0%, 100% { background: transparent; }
+  50% { background: rgba(184, 134, 11, 0.05); }
 }
 
-.admin-attr-item-header {
+/* ─── Item Cell (sticky left) ─── */
+.admin-attr-td-item {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-right: 2px solid rgba(184, 134, 11, 0.1);
+  padding: 0.35rem 0.5rem;
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.admin-attr-table tbody tr:nth-child(even) .admin-attr-td-item {
+  background: color-mix(in srgb, var(--surface) 97%, var(--gold) 3%);
+}
+
+.admin-attr-td-item-inner {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.7rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.admin-attr-item-header:hover {
-  background: rgba(184, 134, 11, 0.03);
-}
-
-/* Status dot */
-.admin-attr-item-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  flex-shrink: 0;
-  transition: background 0.2s;
-}
-
-.admin-attr-item-dot.filled {
-  background: var(--gold);
-  box-shadow: 0 0 4px rgba(184, 134, 11, 0.3);
+  gap: 0.4rem;
 }
 
 .admin-attr-item-name {
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.8rem;
   font-weight: 600;
+  font-size: 0.74rem;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
-}
-
-/* Inline tag preview */
-.admin-attr-tags-preview {
-  display: flex;
-  gap: 0.3rem;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  margin-left: 0.2rem;
-}
-
-.admin-attr-tag {
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.6rem;
-  color: var(--text-faint);
-  background: rgba(184, 134, 11, 0.06);
-  border: 1px solid rgba(184, 134, 11, 0.1);
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;
-}
-
-.admin-attr-tag strong {
-  color: var(--text-dim);
-  font-weight: 600;
-}
-
-.admin-attr-tag.more {
-  color: var(--gold);
-  font-weight: 600;
-  background: rgba(184, 134, 11, 0.1);
-  flex-shrink: 0;
-}
-
-.admin-attr-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(184, 134, 11, 0.15);
-  border-top-color: var(--gold);
-  border-radius: 50%;
-  animation: attr-spin 0.7s linear infinite;
-  flex-shrink: 0;
 }
 
 .admin-attr-search-btn {
   background: none;
   border: 1px solid rgba(184, 134, 11, 0.15);
-  border-radius: 5px;
-  padding: 0.2rem 0.4rem;
-  font-size: 0.65rem;
+  border-radius: 4px;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.6rem;
   cursor: pointer;
   transition: all 0.15s;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .admin-attr-search-btn:hover:not(:disabled) {
@@ -971,144 +999,60 @@ textarea::placeholder {
   cursor: default;
 }
 
-.admin-attr-chevron {
-  color: var(--text-faint);
-  font-size: 0.65rem;
-  flex-shrink: 0;
-  width: 1rem;
-  text-align: center;
+.admin-attr-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(184, 134, 11, 0.15);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: attr-spin 0.7s linear infinite;
 }
 
-/* ─── Expanded Body ─── */
-.admin-attr-item-body {
-  padding: 0.6rem 0.8rem 0.8rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  background: rgba(184, 134, 11, 0.015);
-}
-
-.admin-attr-empty {
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.72rem;
-  color: var(--text-faint);
-  text-align: center;
-  padding: 0.6rem 0;
-  font-style: italic;
-}
-
-.admin-attr-field {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.admin-attr-field-key {
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.7rem;
-  color: var(--gold);
-  min-width: 90px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.admin-attr-field-value {
-  flex: 1;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.72rem;
-  background: var(--surface);
-  color: var(--text);
-  transition: border-color 0.15s;
-}
-
-.admin-attr-field-value:focus {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.08);
-}
-
-.admin-attr-field-remove {
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  font-size: 0.68rem;
+/* ─── Data Cells ─── */
+.admin-attr-td {
   padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: all 0.15s;
+  border-bottom: 1px solid rgba(184, 134, 11, 0.06);
+  min-width: 110px;
+  max-width: 180px;
 }
 
-.admin-attr-field-remove:hover { color: #c0392b; background: rgba(192, 57, 43, 0.08); }
-
-.admin-attr-description {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
-  font-family: 'Raleway', sans-serif;
-  font-size: 0.68rem;
-  color: var(--text-faint);
-  line-height: 1.6;
-  padding: 0.5rem 0.6rem;
-  margin-top: 0.2rem;
-  background: rgba(184, 134, 11, 0.03);
-  border-radius: 6px;
-  border: 1px dashed rgba(184, 134, 11, 0.1);
+.admin-attr-td-empty {
+  padding: 0;
+  border: none;
+  min-width: 130px;
 }
 
-.admin-attr-description-icon {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-}
-
-.admin-attr-add {
-  display: flex;
-  gap: 0.35rem;
-  margin-top: 0.3rem;
-  padding-top: 0.4rem;
-  border-top: 1px dashed var(--border);
-}
-
-.admin-attr-add-input {
-  flex: 1;
-  padding: 0.3rem 0.5rem;
-  border: 1px dashed rgba(184, 134, 11, 0.2);
-  border-radius: 5px;
+.admin-attr-cell {
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
   font-family: 'Raleway', sans-serif;
   font-size: 0.7rem;
   background: transparent;
-  color: var(--text);
-  transition: border-color 0.15s;
+  color: var(--text-faint);
+  transition: all 0.15s;
+  box-sizing: border-box;
 }
 
-.admin-attr-add-input:focus {
+.admin-attr-cell.filled {
+  color: var(--text);
+  background: rgba(184, 134, 11, 0.04);
+  border-color: rgba(184, 134, 11, 0.08);
+}
+
+.admin-attr-cell:hover {
+  border-color: rgba(184, 134, 11, 0.2);
+  background: rgba(184, 134, 11, 0.02);
+}
+
+.admin-attr-cell:focus {
   outline: none;
   border-color: var(--gold);
-  border-style: solid;
-}
-
-.admin-attr-add-btn {
-  background: none;
-  border: 1px solid rgba(184, 134, 11, 0.25);
-  color: var(--gold);
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.25rem 0.6rem;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.admin-attr-add-btn:hover:not(:disabled) {
-  background: rgba(184, 134, 11, 0.1);
-}
-
-.admin-attr-add-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.1);
+  color: var(--text);
 }
 
 /* ─── Admin: Format & Preview ─── */
