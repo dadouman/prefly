@@ -94,8 +94,8 @@ export default function AttributeEditor({ ranking }) {
     if (result && result.attributes) {
       setAttributes((prev) => {
         const existing = prev[itemName] || {};
-        // Merge: keep existing values, add new ones from Wikipedia
-        const merged = { ...result.attributes, ...existing };
+        // Merge: NEW Wikipedia values override old ones, keep user-added keys
+        const merged = { ...existing, ...result.attributes };
         if (result.source) merged["source Wikipedia"] = result.source;
         // Save to DB
         saveItemAttr(itemName, merged);
