@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { getUserRankings, deleteRanking } from "./rankingService";
 import CSVImport from "./CSVImport";
 
-export default function HistoryPanel({ onBack, onViewRanking, onRedoRanking }) {
+export default function HistoryPanel({ onBack, onRedoRanking }) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export default function HistoryPanel({ onBack, onViewRanking, onRedoRanking }) {
                 <div className="history-card-actions">
                   <button
                     className="btn-ghost"
-                    onClick={() => onViewRanking(r)}
+                    onClick={() => navigate(`/ranking/${r.id}`)}
                     style={{ fontSize: "0.75rem", padding: "0.4rem 0.8rem" }}
                   >
                     Voir le détail

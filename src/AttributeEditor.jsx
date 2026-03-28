@@ -101,6 +101,8 @@ export default function AttributeEditor({ ranking }) {
         saveItemAttr(itemName, merged);
         return { ...prev, [itemName]: merged };
       });
+      // Auto-expand the item to show results
+      setExpandedItem(itemName);
     }
     setSearching((s) => ({ ...s, [itemName]: false }));
     return result;
@@ -157,6 +159,14 @@ export default function AttributeEditor({ ranking }) {
                 {keys.length > 0 && (
                   <span className="attr-item-badge">{keys.length} attr.</span>
                 )}
+                {!isExpanded && keys.length > 0 && (
+                  <span className="attr-item-preview">
+                    {keys.filter(k => k !== "description" && k !== "source Wikipedia").slice(0, 3).map(k =>
+                      `${k}: ${(itemAttrs[k] || "").slice(0, 30)}`
+                    ).join(" · ")}
+                  </span>
+                )}
+                {searching[item] && <span className="attr-item-searching">🔄</span>}
                 <span className="attr-item-toggle">{isExpanded ? "▾" : "▸"}</span>
               </div>
 

@@ -2341,6 +2341,116 @@ textarea::placeholder {
   text-transform: uppercase;
 }
 
+/* ─── DataViz: Chart title ─── */
+.dataviz-chart-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0 0 0.8rem 0;
+  text-align: center;
+}
+
+/* ─── DataViz: Attribute selector ─── */
+.dataviz-attr-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+  justify-content: center;
+}
+
+.dataviz-attr-selector-label {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.dataviz-attr-selector-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--text);
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.dataviz-attr-selector-select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* ─── DataViz: Coverage bars ─── */
+.dataviz-coverage-summary {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.dataviz-coverage-big {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: var(--gold);
+  display: block;
+}
+
+.dataviz-coverage-label {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dataviz-coverage-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dataviz-coverage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dataviz-coverage-name {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  min-width: 100px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataviz-coverage-bar-bg {
+  flex: 1;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.dataviz-coverage-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.dataviz-coverage-pct {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  min-width: 30px;
+}
+
 /* =====================================================================
    ATTRIBUTE EDITOR
    ===================================================================== */
@@ -2423,10 +2533,11 @@ textarea::placeholder {
   font-family: 'Raleway', sans-serif;
   font-size: 0.82rem;
   color: var(--text);
-  flex: 1;
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 40%;
 }
 
 .attr-item-badge {
@@ -2441,6 +2552,27 @@ textarea::placeholder {
 .attr-item-toggle {
   color: var(--text-faint);
   font-size: 0.8rem;
+}
+
+.attr-item-preview {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+  opacity: 0.7;
+}
+
+.attr-item-searching {
+  animation: attr-spin 1s linear infinite;
+  font-size: 0.8rem;
+}
+
+@keyframes attr-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .attr-item-body {
