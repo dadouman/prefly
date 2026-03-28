@@ -15,13 +15,13 @@ import { supabase } from "./supabaseClient";
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {
   try {
-    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}`, {
+    const res = await fetch(`/api/wiki-attributes?q=${encodeURIComponent(itemName)}&v=6`, {
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.attributes && Object.keys(data.attributes).length > 0
-      ? data.attributes
+      ? { attributes: data.attributes, source: data.source, title: data.title }
       : null;
   } catch {
     return null;
@@ -198,11 +198,12 @@ function ListEditor({ list, onSave, onCancel }) {
   // Search Wikipedia attributes for one item
   const handleSearchItem = useCallback(async (itemName) => {
     setSearchingItem((s) => ({ ...s, [itemName]: true }));
-    const attrs = await fetchWikiAttributes(itemName);
-    if (attrs) {
+    const result = await fetchWikiAttributes(itemName);
+    if (result && result.attributes) {
       setItemAttributes((prev) => {
-        const existing = prev[itemName] || {};
-        return { ...prev, [itemName]: { ...attrs, ...existing } };
+        const fresh = { ...result.attributes };
+        if (result.source) fresh["source Wikipedia"] = result.source;
+        return { ...prev, [itemName]: fresh };
       });
     }
     setSearchingItem((s) => ({ ...s, [itemName]: false }));
