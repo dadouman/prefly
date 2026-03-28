@@ -163,9 +163,11 @@ function ListEditor({ list, onSave, onCancel }) {
   const handleAutoFormat = () => {
     const lines = itemsText.split("\n").map((l) => l.trim()).filter(Boolean);
     const formatted = lines.map((line) => {
+      // Normalize tabs and multiple spaces into single spaces
+      let clean = line.replace(/\t/g, " ").replace(/ {2,}/g, " ").trim();
       if (format === "discography") {
         // Normalize separators: replace " – ", " — ", " | " with " - "
-        let clean = line
+        clean = clean
           .replace(/\s*[–—]\s*/g, " - ")
           .replace(/\s*\|\s*/g, " - ");
         // Capitalize first letter of each segment
@@ -174,8 +176,8 @@ function ListEditor({ list, onSave, onCancel }) {
         ).join(" - ");
         return clean;
       }
-      // Default: trim and capitalize first letter
-      return line.trim().replace(/^\w/, (c) => c.toUpperCase());
+      // Default: capitalize first letter
+      return clean.replace(/^\w/, (c) => c.toUpperCase());
     });
     setItemsText(formatted.join("\n"));
   };
@@ -243,6 +245,9 @@ function ListEditor({ list, onSave, onCancel }) {
 
   const attrCount = Object.values(itemAttributes).reduce((sum, a) => sum + Object.keys(a).length, 0);
   const itemsWithAttrs = Object.keys(itemAttributes).filter((k) => Object.keys(itemAttributes[k] || {}).length > 0).length;
+  const allAttrKeys = [...new Set(
+    Object.values(itemAttributes).flatMap((a) => Object.keys(a || {}))
+  )].filter((k) => k !== "description" && k !== "source Wikipedia");
 
   return (
     <div className="card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
@@ -283,70 +288,187 @@ function ListEditor({ list, onSave, onCancel }) {
         )}
       </div>
 
+      {/* ─── FORMAT & MISE EN FORME ─── */}
+      <div className="admin-format-section">
+        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <span className="label">Format d'affichage</span>
+            <select
+              className="admin-input"
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+              style={{ cursor: "pointer" }}
+            >
+              <option value="">Standard</option>
+              <option value="discography">Discographie (Titre - Album - Année)</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", paddingTop: "1.2rem" }}>
+            <button
+              className="btn-ghost"
+              onClick={handleAutoFormat}
+              disabled={itemCount === 0}
+              style={{ fontSize: "0.72rem", padding: "0.4rem 0.7rem" }}
+              title="Nettoyer et uniformiser l'écriture des éléments"
+            >
+              ✨ Mise en forme
+            </button>
+            <button
+              className={`btn-ghost${showPreview ? " active" : ""}`}
+              onClick={() => setShowPreview(!showPreview)}
+              disabled={itemCount === 0}
+              style={{ fontSize: "0.72rem", padding: "0.4rem 0.7rem" }}
+            >
+              {showPreview ? "✕ Fermer" : "👁 Prévisualiser"}
+            </button>
+          </div>
+        </div>
+
+        {format === "discography" && (
+          <p style={{ fontSize: "0.68rem", color: "var(--text-faint)", lineHeight: 1.6, marginTop: "0.4rem" }}>
+            Format attendu : <code style={{ background: "rgba(184,134,11,0.08)", padding: "0.15em 0.4em", borderRadius: 3, fontSize: "0.92em" }}>Titre - Album - Année</code>
+            <br />Le bouton <strong>Mise en forme</strong> uniformise les séparateurs (–, —, |) en « - ».
+          </p>
+        )}
+      </div>
+
+      {/* ─── PREVIEW SECTION ─── */}
+      {showPreview && itemCount > 0 && (
+        <div className="admin-preview-section">
+          <div className="admin-preview-header">
+            <span className="label" style={{ margin: 0 }}>👁 Aperçu des cartes</span>
+            <span className="admin-preview-badge">
+              {Math.min(4, itemCount)} / {itemCount} premiers éléments
+            </span>
+          </div>
+          <div className="admin-preview-grid">
+            {items.slice(0, 4).map((item, i) => (
+              <div key={i} className="admin-preview-card">
+                <div className={`admin-preview-text${format === "discography" ? " disco" : ""}`}>
+                  <PreviewItemLabel item={item} format={format} />
+                </div>
+                <div className="admin-preview-hint">Élément {i + 1}</div>
+              </div>
+            ))}
+          </div>
+          {itemCount > 4 && (
+            <p style={{ textAlign: "center", fontSize: "0.68rem", color: "var(--text-faint)", marginTop: "0.5rem" }}>
+              … et {itemCount - 4} autre{itemCount - 4 > 1 ? "s" : ""} élément{itemCount - 4 > 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ─── ATTRIBUTE SEARCH SECTION ─── */}
       {itemCount >= 2 && (
         <div className="admin-attr-section">
           <div className="admin-attr-header">
             <span className="label" style={{ margin: 0 }}>🔍 Attributs Wikipedia</span>
-            {attrCount > 0 && (
-              <span className="admin-attr-badge">{itemsWithAttrs}/{itemCount} éléments · {attrCount} attributs</span>
-            )}
-          </div>
-
-          <div className="admin-attr-actions">
-            <button
-              className="btn-gold"
-              onClick={handleSearchAll}
-              disabled={!!searchingAll}
-              style={{ fontSize: "0.78rem", padding: "0.45rem 0.9rem" }}
-            >
-              {searchingAll
-                ? `🔄 ${searchingAll.done}/${searchingAll.total}…`
-                : "🔍 Rechercher attributs pour tous"}
-            </button>
-            {attrCount > 0 && (
+            <div className="admin-attr-actions">
               <button
-                className="btn-ghost"
-                onClick={() => setShowAttrs(!showAttrs)}
-                style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem" }}
+                className="btn-gold"
+                onClick={handleSearchAll}
+                disabled={!!searchingAll}
+                style={{ fontSize: "0.75rem", padding: "0.4rem 0.85rem" }}
               >
-                {showAttrs ? "▾ Masquer" : "▸ Voir les attributs"}
+                {searchingAll
+                  ? `🔄 ${searchingAll.done}/${searchingAll.total}…`
+                  : "🔍 Rechercher pour tous"}
               </button>
-            )}
+              {attrCount > 0 && (
+                <button
+                  className="btn-ghost"
+                  onClick={() => setShowAttrs(!showAttrs)}
+                  style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem" }}
+                >
+                  {showAttrs ? "▾ Masquer" : "▸ Détails"}
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* ─── COVERAGE DASHBOARD ─── */}
+          {attrCount > 0 && (
+            <div className="admin-attr-dashboard">
+              <div className="admin-attr-stat">
+                <div className="admin-attr-stat-value">{itemsWithAttrs}<span className="admin-attr-stat-dim">/{itemCount}</span></div>
+                <div className="admin-attr-stat-label">éléments enrichis</div>
+              </div>
+              <div className="admin-attr-stat">
+                <div className="admin-attr-stat-value">{attrCount}</div>
+                <div className="admin-attr-stat-label">attributs total</div>
+              </div>
+              <div className="admin-attr-stat">
+                <div className="admin-attr-stat-value">{allAttrKeys.length}</div>
+                <div className="admin-attr-stat-label">clés uniques</div>
+              </div>
+              <div className="admin-attr-coverage-bar">
+                <div className="admin-attr-coverage-fill" style={{ width: `${Math.round((itemsWithAttrs / itemCount) * 100)}%` }} />
+              </div>
+            </div>
+          )}
+
+          {/* ─── ATTRIBUTE KEYS OVERVIEW ─── */}
+          {attrCount > 0 && allAttrKeys.length > 0 && (
+            <div className="admin-attr-keys-row">
+              {allAttrKeys.map((key) => {
+                const keyCount = items.filter((it) => itemAttributes[it]?.[key]).length;
+                return (
+                  <span key={key} className="admin-attr-key-chip">
+                    {key} <span className="admin-attr-key-chip-count">{keyCount}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ─── ITEMS LIST ─── */}
           {showAttrs && items.length > 0 && (
             <div className="admin-attr-list">
               {items.map((item) => {
                 const attrs = itemAttributes[item] || {};
-                const keys = Object.keys(attrs);
+                const keys = Object.keys(attrs).filter((k) => k !== "description" && k !== "source Wikipedia");
+                const hasAttrs = keys.length > 0;
                 const isExpanded = expandedItem === item;
+                const isSearching = searchingItem[item];
 
                 return (
-                  <div key={item} className={`admin-attr-item${isExpanded ? " expanded" : ""}`}>
+                  <div key={item} className={`admin-attr-item${isExpanded ? " expanded" : ""}${hasAttrs ? " has-attrs" : ""}${isSearching ? " searching" : ""}`}>
                     <div
                       className="admin-attr-item-header"
                       onClick={() => setExpandedItem(isExpanded ? null : item)}
                     >
+                      <span className={`admin-attr-item-dot${hasAttrs ? " filled" : ""}`} />
                       <span className="admin-attr-item-name">{item}</span>
-                      {keys.length > 0 && (
-                        <span className="admin-attr-item-count">{keys.length} attr.</span>
+
+                      {/* Inline tag preview when collapsed */}
+                      {!isExpanded && hasAttrs && (
+                        <div className="admin-attr-tags-preview">
+                          {keys.slice(0, 3).map((k) => (
+                            <span key={k} className="admin-attr-tag">{k}: <strong>{String(attrs[k]).slice(0, 20)}</strong></span>
+                          ))}
+                          {keys.length > 3 && <span className="admin-attr-tag more">+{keys.length - 3}</span>}
+                        </div>
                       )}
-                      {searchingItem[item] && <span className="admin-attr-spinner">🔄</span>}
+
+                      {isSearching && <span className="admin-attr-spinner" />}
                       <button
                         className="admin-attr-search-btn"
                         onClick={(e) => { e.stopPropagation(); handleSearchItem(item); }}
-                        disabled={searchingItem[item]}
+                        disabled={isSearching}
                         title="Rechercher sur Wikipedia"
                       >
                         🔍
                       </button>
-                      <span style={{ color: "var(--text-faint)", fontSize: "0.7rem" }}>{isExpanded ? "▾" : "▸"}</span>
+                      <span className="admin-attr-chevron">{isExpanded ? "▾" : "▸"}</span>
                     </div>
 
                     {isExpanded && (
                       <div className="admin-attr-item-body">
-                        {keys.filter((k) => k !== "description" && k !== "source Wikipedia").map((key) => (
+                        {keys.length === 0 && (
+                          <div className="admin-attr-empty">Aucun attribut — cliquez 🔍 pour rechercher</div>
+                        )}
+                        {keys.map((key) => (
                           <div key={key} className="admin-attr-field">
                             <span className="admin-attr-field-key">{key}</span>
                             <input
@@ -359,13 +481,14 @@ function ListEditor({ list, onSave, onCancel }) {
                             <button
                               className="admin-attr-field-remove"
                               onClick={() => handleRemoveAttr(item, key)}
+                              title="Supprimer"
                             >✕</button>
                           </div>
                         ))}
-                        {/* description displayed separately if present */}
                         {attrs.description && (
                           <div className="admin-attr-description">
-                            {attrs.description.slice(0, 150)}{attrs.description.length > 150 ? "…" : ""}
+                            <span className="admin-attr-description-icon">📝</span>
+                            {attrs.description.slice(0, 200)}{attrs.description.length > 200 ? "…" : ""}
                           </div>
                         )}
                         <div className="admin-attr-add">
@@ -375,7 +498,7 @@ function ListEditor({ list, onSave, onCancel }) {
                             value={expandedItem === item ? newAttrKey : ""}
                             onChange={(e) => setNewAttrKey(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleAddAttr(item)}
-                            placeholder="Nouvel attribut…"
+                            placeholder="+ Ajouter un attribut…"
                           />
                           <button
                             className="admin-attr-add-btn"
