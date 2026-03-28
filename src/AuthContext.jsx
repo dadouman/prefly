@@ -55,7 +55,10 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { pseudo } },
+      options: {
+        data: { pseudo },
+        emailRedirectTo: window.location.origin,
+      },
     });
     return { data, error };
   };
