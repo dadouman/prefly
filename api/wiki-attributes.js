@@ -71,8 +71,11 @@ async function safeFetch(url, timeoutMs = 5000) {
 }
 
 // Clean a query string to extract the most meaningful search term
-// E.g. "Hungaroring Budapest Hongrie 24-26 juillet" → ["Hungaroring Budapest", "Hungaroring"]
+// E.g. "Hungaroring\tBudapest\tHongrie\t24-26 juillet" → ["Hungaroring", "Hungaroring Budapest"]
 function buildSearchVariants(raw) {
+  // Normalize: replace tabs and multiple spaces with single space
+  raw = raw.replace(/[\t\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim();
+
   // Remove date patterns: "24-26 juillet", "3 mars 2024", "2024", "12/06", etc.
   let cleaned = raw
     .replace(/\d{1,2}[-–]\d{1,2}\s+\w+/g, "")   // "24-26 juillet"
@@ -85,15 +88,16 @@ function buildSearchVariants(raw) {
     .trim();
 
   const variants = [];
-  if (cleaned && cleaned !== raw.trim()) variants.push(cleaned);
 
-  // Also try just the first word(s) — often the proper noun
-  const words = cleaned ? cleaned.split(/\s+/) : raw.trim().split(/\s+/);
-  if (words.length > 2) variants.push(words.slice(0, 2).join(" "));
+  // Prioritize: first word alone (often the unique proper noun), then first 2 words, then cleaned, then full raw
+  const words = cleaned ? cleaned.split(/\s+/) : raw.split(/\s+/);
   if (words.length > 1) variants.push(words[0]);
+  if (words.length > 2) variants.push(words.slice(0, 2).join(" "));
+  if (cleaned && cleaned !== raw) variants.push(cleaned);
+  variants.push(raw);
 
-  // Always include the original as first attempt
-  return [raw.trim(), ...variants.filter((v) => v && v !== raw.trim())];
+  // Deduplicate while preserving order
+  return [...new Set(variants.filter(Boolean))];
 }
 
 async function searchWikipedia(query, apiBase) {
