@@ -122,8 +122,8 @@ export default function AuthModal({ onClose }) {
           </button>
         </form>
 
-        {/* Google OAuth (login + signup) */}
-        {tab !== "anonymous" && (
+        {/* Google OAuth — hidden until provider is enabled in Supabase */}
+        {/* {tab !== "anonymous" && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "1rem 0" }}>
               <div className="hr" style={{ flex: 1 }} />
@@ -135,7 +135,7 @@ export default function AuthModal({ onClose }) {
               Continuer avec Google
             </button>
           </>
-        )}
+        )} */}
 
         {tab === "anonymous" && (
           <p className="auth-hint">
