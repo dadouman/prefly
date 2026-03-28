@@ -93,13 +93,12 @@ export default function AttributeEditor({ ranking }) {
     const result = await fetchWikiAttributes(itemName);
     if (result && result.attributes) {
       setAttributes((prev) => {
-        const existing = prev[itemName] || {};
-        // Merge: NEW Wikipedia values override old ones, keep user-added keys
-        const merged = { ...existing, ...result.attributes };
-        if (result.source) merged["source Wikipedia"] = result.source;
+        // Replace entirely with new Wikipedia data
+        const fresh = { ...result.attributes };
+        if (result.source) fresh["source Wikipedia"] = result.source;
         // Save to DB
-        saveItemAttr(itemName, merged);
-        return { ...prev, [itemName]: merged };
+        saveItemAttr(itemName, fresh);
+        return { ...prev, [itemName]: fresh };
       });
       // Auto-expand the item to show results
       setExpandedItem(itemName);
