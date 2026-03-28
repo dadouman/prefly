@@ -388,6 +388,20 @@ function ListEditor({ list, onSave, onCancel }) {
         </div>
       )}
 
+      <div style={{ display: "flex", gap: "0.8rem" }}>
+        <button
+          className="btn-gold"
+          onClick={handleSave}
+          disabled={!name.trim() || itemCount < 2}
+          style={{ flex: 1 }}
+        >
+          {list ? "Enregistrer" : "Créer"} ✓
+        </button>
+        <button className="btn-ghost" onClick={onCancel} style={{ flex: 1 }}>
+          Annuler
+        </button>
+      </div>
+
       {/* ─── ATTRIBUTE TABLE SECTION ─── */}
       {itemCount >= 2 && (
         <div className="admin-attr-section">
@@ -506,20 +520,6 @@ function ListEditor({ list, onSave, onCancel }) {
           )}
         </div>
       )}
-
-      <div style={{ display: "flex", gap: "0.8rem" }}>
-        <button
-          className="btn-gold"
-          onClick={handleSave}
-          disabled={!name.trim() || itemCount < 2}
-          style={{ flex: 1 }}
-        >
-          {list ? "Enregistrer" : "Créer"} ✓
-        </button>
-        <button className="btn-ghost" onClick={onCancel} style={{ flex: 1 }}>
-          Annuler
-        </button>
-      </div>
     </div>
   );
 }
