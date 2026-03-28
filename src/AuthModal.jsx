@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useAuth } from "./AuthContext";
 
 export default function AuthModal({ onClose }) {
-  const { signUp, signIn, signInWithGoogle, signInAnonymous } = useAuth();
-  const [tab, setTab] = useState("login"); // "login" | "signup" | "anonymous"
+  const { signUp, signIn, signInWithGoogle, signInAnonymous, signInWithPseudo } = useAuth();
+  const [tab, setTab] = useState("login"); // "login" | "signup" | "pseudo" | "anonymous"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pseudo, setPseudo] = useState("");
@@ -26,6 +26,11 @@ export default function AuthModal({ onClose }) {
         setSuccess("Compte créé ! Vérifiez votre email pour confirmer.");
       } else if (tab === "login") {
         const { error: err } = await signIn(email, password);
+        if (err) { setError(err.message); setLoading(false); return; }
+        onClose();
+      } else if (tab === "pseudo") {
+        if (!pseudo.trim()) { setError("Un pseudo est requis"); setLoading(false); return; }
+        const { error: err } = await signInWithPseudo(pseudo.trim());
         if (err) { setError(err.message); setLoading(false); return; }
         onClose();
       } else if (tab === "anonymous") {
@@ -54,7 +59,7 @@ export default function AuthModal({ onClose }) {
         <div className="auth-header">
           <div className="ornament" style={{ marginBottom: "0.5rem", fontSize: "0.8rem" }}>✦ ✦ ✦</div>
           <h2 className="auth-title">
-            {tab === "login" ? "Connexion" : tab === "signup" ? "Créer un compte" : "Mode invité"}
+            {tab === "login" ? "Connexion" : tab === "signup" ? "Créer un compte" : tab === "pseudo" ? "Pseudo seul" : "Mode invité"}
           </h2>
         </div>
 
@@ -66,14 +71,17 @@ export default function AuthModal({ onClose }) {
           <button className={`auth-tab${tab === "signup" ? " active" : ""}`} onClick={() => { setTab("signup"); setError(null); setSuccess(null); }}>
             Inscription
           </button>
+          <button className={`auth-tab${tab === "pseudo" ? " active" : ""}`} onClick={() => { setTab("pseudo"); setError(null); setSuccess(null); }}>
+            Pseudo seul
+          </button>
           <button className={`auth-tab${tab === "anonymous" ? " active" : ""}`} onClick={() => { setTab("anonymous"); setError(null); setSuccess(null); }}>
             Invité
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {/* Pseudo field (signup + anonymous) */}
-          {(tab === "signup" || tab === "anonymous") && (
+          {/* Pseudo field (signup + pseudo + anonymous) */}
+          {(tab === "signup" || tab === "anonymous" || tab === "pseudo") && (
             <div className="auth-field">
               <label className="label">Pseudo</label>
               <input
@@ -82,13 +90,13 @@ export default function AuthModal({ onClose }) {
                 onChange={(e) => setPseudo(e.target.value)}
                 placeholder="Votre pseudo"
                 maxLength={30}
-                autoFocus={tab === "anonymous"}
+                autoFocus={tab === "anonymous" || tab === "pseudo"}
               />
             </div>
           )}
 
           {/* Email + Password (login + signup) */}
-          {tab !== "anonymous" && (
+          {tab !== "anonymous" && tab !== "pseudo" && (
             <>
               <div className="auth-field">
                 <label className="label">Email</label>
@@ -118,12 +126,12 @@ export default function AuthModal({ onClose }) {
           {success && <p className="auth-success">{success}</p>}
 
           <button className="btn-gold" type="submit" disabled={loading} style={{ width: "100%" }}>
-            {loading ? "Chargement…" : tab === "login" ? "Se connecter" : tab === "signup" ? "Créer mon compte" : "Continuer en invité"}
+            {loading ? "Chargement…" : tab === "login" ? "Se connecter" : tab === "signup" ? "Créer mon compte" : tab === "pseudo" ? "Entrer avec ce pseudo" : "Continuer en invité"}
           </button>
         </form>
 
         {/* Google OAuth */}
-        {tab !== "anonymous" && (
+        {tab !== "anonymous" && tab !== "pseudo" && (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", margin: "1rem 0" }}>
               <div className="hr" style={{ flex: 1 }} />
@@ -135,6 +143,13 @@ export default function AuthModal({ onClose }) {
               Continuer avec Google
             </button>
           </>
+        )}
+
+        {tab === "pseudo" && (
+          <p className="auth-hint">
+            Entrez un pseudo pour créer un compte partagé sans mot de passe.
+            Toute personne utilisant le même pseudo accèdera aux mêmes classements.
+          </p>
         )}
 
         {tab === "anonymous" && (
