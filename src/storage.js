@@ -1,24 +1,61 @@
 // =====================================================================
 // STORAGE LAYER — Pre-built lists & Admin
 // =====================================================================
-// Source of truth: /lists.json (static file in public/)
-// Admin edits are saved to localStorage as an overlay.
-// To publish changes: use the "Exporter JSON" button in the admin panel
-// and replace public/lists.json, then redeploy.
-//
-// Migration to Supabase/Firebase: replace fetchRemoteLists() and the
-// save/add/update/delete functions with API calls. Everything else
-// stays the same.
+// Source of truth: Supabase `prebuilt_lists` table (shared across all users).
+// Fallback: /lists.json (static file in public/) when Supabase is not
+// configured or unreachable.
 // =====================================================================
 
-const LISTS_KEY = "arena_prebuilt_lists";
-const ADMIN_KEY = "arena_admin_pin";
-const LISTS_VERSION_KEY = "arena_lists_version";
-// Bump this version string whenever public/lists.json changes.
-// This invalidates the localStorage cache so visitors see the new data.
-const LISTS_VERSION = "2";
+import { supabase } from "./supabaseClient";
 
-// Fetch the static lists.json — this is what all visitors see
+const ADMIN_KEY = "arena_admin_pin";
+
+// ── Supabase helpers ────────────────────────────────────────────────
+
+// Convert a Supabase row to the app list shape
+function rowToList(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || "",
+    ...(row.format ? { format: row.format } : {}),
+    items: row.items || [],
+    ...(row.item_attributes && Object.keys(row.item_attributes).length > 0
+      ? { itemAttributes: row.item_attributes }
+      : {}),
+  };
+}
+
+// Convert an app list to a Supabase row
+function listToRow(list) {
+  return {
+    id: list.id,
+    name: list.name,
+    description: list.description || "",
+    format: list.format || "",
+    items: list.items || [],
+    item_attributes: list.itemAttributes || {},
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// ── Fetch lists (Supabase → fallback to static JSON) ────────────────
+
+async function fetchFromSupabase() {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("prebuilt_lists")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) return null;
+    return data.map(rowToList);
+  } catch {
+    return null;
+  }
+}
+
 async function fetchRemoteLists() {
   try {
     const res = await fetch("/lists.json");
@@ -29,55 +66,77 @@ async function fetchRemoteLists() {
   }
 }
 
-// Returns admin-edited lists from localStorage, or fetches from the
-// static JSON if no local overrides exist.
-export async function getPrebuiltLists() {
-  // Invalidate cache when the bundled lists version changes
-  if (localStorage.getItem(LISTS_VERSION_KEY) !== LISTS_VERSION) {
-    localStorage.removeItem(LISTS_KEY);
-    localStorage.setItem(LISTS_VERSION_KEY, LISTS_VERSION);
-  }
+// Seed Supabase from the static lists.json if the table is empty
+async function seedSupabaseIfEmpty() {
+  if (!supabase) return;
   try {
-    const stored = localStorage.getItem(LISTS_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch { /* ignore */ }
-  // No local overrides — load from static file
-  const remote = await fetchRemoteLists();
-  return remote;
+    const { count } = await supabase
+      .from("prebuilt_lists")
+      .select("id", { count: "exact", head: true });
+    if (count > 0) return;
+    const staticLists = await fetchRemoteLists();
+    if (staticLists.length === 0) return;
+    const rows = staticLists.map((l, i) => ({ ...listToRow(l), sort_order: i }));
+    await supabase.from("prebuilt_lists").upsert(rows);
+  } catch { /* silent */ }
 }
 
-export function savePrebuiltLists(lists) {
-  localStorage.setItem(LISTS_KEY, JSON.stringify(lists));
+// Returns the shared lists from Supabase (or static JSON as fallback).
+export async function getPrebuiltLists() {
+  // Try Supabase first
+  const sbLists = await fetchFromSupabase();
+  if (sbLists !== null) {
+    if (sbLists.length === 0) {
+      // Table exists but is empty — seed from static file
+      await seedSupabaseIfEmpty();
+      const seeded = await fetchFromSupabase();
+      return seeded || await fetchRemoteLists();
+    }
+    return sbLists;
+  }
+  // Supabase not available — fall back to static file
+  return await fetchRemoteLists();
 }
+
+// ── Admin CRUD (writes to Supabase) ─────────────────────────────────
 
 export async function addPrebuiltList(list) {
-  const lists = await getPrebuiltLists();
-  lists.push({ ...list, id: crypto.randomUUID() });
-  savePrebuiltLists(lists);
-  return lists;
+  const newList = { ...list, id: crypto.randomUUID() };
+  if (supabase) {
+    const row = listToRow(newList);
+    await supabase.from("prebuilt_lists").insert(row);
+  }
+  return await getPrebuiltLists();
 }
 
 export async function updatePrebuiltList(id, updates) {
-  const lists = await getPrebuiltLists();
-  const idx = lists.findIndex((l) => l.id === id);
-  if (idx !== -1) lists[idx] = { ...lists[idx], ...updates };
-  savePrebuiltLists(lists);
-  return lists;
+  if (supabase) {
+    const existing = (await getPrebuiltLists()).find((l) => l.id === id);
+    if (existing) {
+      const merged = { ...existing, ...updates, id };
+      const row = listToRow(merged);
+      await supabase.from("prebuilt_lists").update(row).eq("id", id);
+    }
+  }
+  return await getPrebuiltLists();
 }
 
 export async function deletePrebuiltList(id) {
-  const lists = (await getPrebuiltLists()).filter((l) => l.id !== id);
-  savePrebuiltLists(lists);
-  return lists;
+  if (supabase) {
+    await supabase.from("prebuilt_lists").delete().eq("id", id);
+  }
+  return await getPrebuiltLists();
 }
 
-// Reset local overrides — visitors will see the static lists.json again
-export function resetToRemoteLists() {
-  localStorage.removeItem(LISTS_KEY);
+// Reset — re-seed from static lists.json
+export async function resetToRemoteLists() {
+  if (supabase) {
+    await supabase.from("prebuilt_lists").delete().neq("id", "");
+    await seedSupabaseIfEmpty();
+  }
 }
 
 // Export current lists as a downloadable JSON file
-// (to replace public/lists.json before redeploying)
 export async function exportListsJSON() {
   const lists = await getPrebuiltLists();
   const json = JSON.stringify(lists, null, 2);

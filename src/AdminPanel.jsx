@@ -605,7 +605,7 @@ export default function AdminPanel({ onBack }) {
   };
 
   const handleReset = async () => {
-    resetToRemoteLists();
+    await resetToRemoteLists();
     setLists(await getPrebuiltLists());
   };
 
@@ -693,8 +693,7 @@ export default function AdminPanel({ onBack }) {
           </div>
 
           <p style={{ marginTop: "1rem", fontSize: "0.7rem", color: "var(--text-faint)", textAlign: "center", lineHeight: 1.7, letterSpacing: "0.03em" }}>
-            Les modifications sont locales à votre navigateur.<br />
-            Pour les publier : <strong>Exporter JSON</strong> → remplacer <code>public/lists.json</code> → redéployer.
+            Les modifications sont enregistrées dans Supabase et visibles par tous les utilisateurs.
           </p>
         </>
       )}

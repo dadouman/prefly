@@ -5,10 +5,15 @@ const TMDB_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p/w200";
 
+const FETCH_HEADERS = {
+  "User-Agent": "Prefly/1.0 (https://prefly.vercel.app)",
+  "Accept": "application/json",
+};
+
 export default async function handler(req, res) {
   const { q } = req.query;
   if (!q) return res.status(400).json({ error: "Missing q parameter" });
-  if (!TMDB_KEY) return res.status(500).json({ error: "TMDB_API_KEY not configured" });
+  if (!TMDB_KEY) return res.status(500).json({ error: "TMDB_API_KEY not configured — add it in Vercel Environment Variables" });
 
   try {
     const url = `${TMDB_BASE}/search/multi?${new URLSearchParams({
@@ -18,9 +23,10 @@ export default async function handler(req, res) {
       include_adult: "false",
     })}`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: FETCH_HEADERS });
     if (!response.ok) {
-      return res.status(502).json({ error: "TMDb API error" });
+      const text = await response.text().catch(() => "");
+      return res.status(502).json({ error: `TMDb API error: ${response.status}`, detail: text.slice(0, 200) });
     }
 
     const data = await response.json();
