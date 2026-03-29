@@ -326,7 +326,7 @@ function MatchVoteCard({ match, userVote, onVote, disabled, imageMap, onDismissI
 // =====================================================================
 // BRACKET OVERVIEW (mini visual of all rounds)
 // =====================================================================
-function BracketOverview({ allMatches, totalRounds, currentRound }) {
+function BracketOverview({ allMatches, totalRounds, currentRound, imageMap, onScrollToMatch }) {
   const byRound = useMemo(() => {
     const map = {};
     for (const m of allMatches) {
@@ -338,29 +338,71 @@ function BracketOverview({ allMatches, totalRounds, currentRound }) {
     return map;
   }, [allMatches]);
 
+  const handleMatchClick = (m) => {
+    if (onScrollToMatch && m.round === currentRound && !m.is_bye) {
+      onScrollToMatch(m.id);
+    } else {
+      const el = document.getElementById(`match-card-${m.id}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const renderThumb = (item) => {
+    const url = imageMap?.get(item);
+    if (!url) return null;
+    return <img src={url} alt="" className="cb-mini-thumb" />;
+  };
+
   return (
     <div className="cb-bracket-overview">
       <div className="cb-bracket-rounds-scroll">
-        {Array.from({ length: totalRounds }, (_, r) => (
-          <div key={r} className={`cb-bracket-round${r === currentRound ? " cb-round-active" : r < currentRound ? " cb-round-done" : " cb-round-future"}`}>
-            <div className="cb-bracket-round-label">
-              {getRoundName(r, totalRounds)}
+        {Array.from({ length: totalRounds }, (_, r) => {
+          const roundMatches = byRound[r] || [];
+          const isActive = r === currentRound;
+          const isDone = r < currentRound;
+          const isFuture = r > currentRound;
+          return (
+            <div key={r} className={`cb-bracket-round${isActive ? " cb-round-active" : isDone ? " cb-round-done" : " cb-round-future"}`}>
+              <div className="cb-bracket-round-label">
+                {getRoundName(r, totalRounds)}
+              </div>
+              <div className="cb-bracket-round-matches">
+                {roundMatches.map(m => (
+                  <div
+                    key={m.id}
+                    className={`cb-mini-match${m.winner ? " resolved" : ""}${m.is_bye ? " bye" : ""}${isActive && !m.is_bye ? " active-match" : ""}`}
+                    onClick={() => handleMatchClick(m)}
+                    role={isActive && !m.is_bye ? "button" : undefined}
+                    tabIndex={isActive && !m.is_bye ? 0 : undefined}
+                  >
+                    <div className="cb-mini-slot">
+                      {renderThumb(m.item_a)}
+                      <span className={`cb-mini-item${m.winner === m.item_a ? " winner" : ""}`}>
+                        {m.item_a || "BYE"}
+                      </span>
+                    </div>
+                    <span className="cb-mini-vs">vs</span>
+                    <div className="cb-mini-slot">
+                      {renderThumb(m.item_b)}
+                      <span className={`cb-mini-item${m.winner === m.item_b ? " winner" : ""}`}>
+                        {m.item_b || "BYE"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {isFuture && roundMatches.length === 0 && (
+                  Array.from({ length: Math.ceil((byRound[0]?.length || 1) / Math.pow(2, r)) }, (_, i) => (
+                    <div key={`tbd-${i}`} className="cb-mini-match future-tbd">
+                      <div className="cb-mini-slot"><span className="cb-mini-item">?</span></div>
+                      <span className="cb-mini-vs">vs</span>
+                      <div className="cb-mini-slot"><span className="cb-mini-item">?</span></div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-            <div className="cb-bracket-round-matches">
-              {(byRound[r] || []).map(m => (
-                <div key={m.id} className={`cb-mini-match${m.winner ? " resolved" : ""}${m.is_bye ? " bye" : ""}`}>
-                  <span className={`cb-mini-item${m.winner === m.item_a ? " winner" : ""}`}>
-                    {m.item_a || "BYE"}
-                  </span>
-                  <span className="cb-mini-vs">vs</span>
-                  <span className={`cb-mini-item${m.winner === m.item_b ? " winner" : ""}`}>
-                    {m.item_b || "BYE"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {/* Champion slot */}
         <div className="cb-bracket-round cb-round-champion">
           <div className="cb-bracket-round-label">Champion</div>
@@ -715,6 +757,7 @@ export function CommunityBracketView() {
   // ─── CANCELLED ───
   if (bracket.status === "cancelled") {
     return (
+      <div className="cb-page-wrap">
       <div className="cb-page fade">
         <div className="cb-champion-screen">
           <div className="cb-ornament">✦ ✦ ✦</div>
@@ -725,12 +768,14 @@ export function CommunityBracketView() {
           </div>
         </div>
       </div>
+      </div>
     );
   }
 
   // ─── FINISHED ───
   if (bracket.status === "finished") {
     return (
+      <div className="cb-page-wrap">
       <div className="cb-page fade">
         <div className="cb-champion-screen">
           <div className="cb-ornament">✦ ✦ ✦</div>
@@ -743,17 +788,19 @@ export function CommunityBracketView() {
             <span className="badge">{bracket.items.length} combattants</span>
             <span className="badge">{bracket.total_rounds} tours</span>
           </div>
-          <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={-1} />
+          <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={-1} imageMap={imageMap} />
           <div className="cb-actions">
             <button className="btn-ghost" onClick={() => navigate("/community")}>← Tous les tournois</button>
           </div>
         </div>
+      </div>
       </div>
     );
   }
 
   // ─── ACTIVE TOURNAMENT ───
   return (
+    <div className="cb-page-wrap">
     <div className="cb-page fade">
       <div className="cb-header">
         <button className="cb-back-btn" onClick={() => navigate("/community")}>←</button>
@@ -900,17 +947,18 @@ export function CommunityBracketView() {
         </h2>
         <div className="cb-matches-grid">
           {currentRoundMatches.map(m => (
+            <div key={m.id} id={`match-card-${m.id}`}>
             <MatchVoteCard
-              key={m.id}
               match={m}
               userVote={userVotes[m.id]}
               onVote={handleVote}
               disabled={!user || countdown?.expired}
               imageMap={imageMap}
-              onDismissImage={handleDismissImage}
+              onDismissImage={isCreator ? handleDismissImage : undefined}
               format={bracket?.format}
               showYouTube={showYouTube}
             />
+            </div>
           ))}
         </div>
         {currentRoundMatches.length === 0 && (
@@ -921,8 +969,9 @@ export function CommunityBracketView() {
       {/* Bracket overview */}
       <div className="cb-overview-section">
         <h2 className="cb-section-title">Tableau du Tournoi</h2>
-        <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={bracket.current_round} />
+        <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={bracket.current_round} imageMap={imageMap} />
       </div>
+    </div>
     </div>
   );
 }

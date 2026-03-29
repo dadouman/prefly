@@ -556,7 +556,11 @@ export default function App() {
             />
           </div>
         } />
-        <Route path="/community/:id" element={<CommunityBracketView />} />
+        <Route path="/community/:id" element={
+          <div className="root">
+            <CommunityBracketView />
+          </div>
+        } />
         <Route path="*" element={
       <div className="root">
 
