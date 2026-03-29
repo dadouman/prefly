@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getRecentPublicRankings } from "./rankingService";
 
-export default function ActivityFeed({ onBack }) {
+export default function ActivityFeed({ onBack, onChallenge }) {
   const navigate = useNavigate();
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState({ mode: "all", search: "" });
+  const [filter, setFilter] = useState({ mode: "all", search: "", list: null });
 
   useEffect(() => {
     (async () => {
@@ -21,8 +21,20 @@ export default function ActivityFeed({ onBack }) {
     })();
   }, []);
 
+  // Extract unique list names sorted by frequency
+  const listTags = useMemo(() => {
+    const counts = {};
+    for (const r of rankings) {
+      counts[r.list_name] = (counts[r.list_name] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+  }, [rankings]);
+
   const filtered = rankings.filter((r) => {
     if (filter.mode !== "all" && r.mode !== filter.mode) return false;
+    if (filter.list && r.list_name !== filter.list) return false;
     if (filter.search) {
       const q = filter.search.toLowerCase();
       const pseudo = r.profiles?.pseudo?.toLowerCase() || "";
@@ -84,6 +96,53 @@ export default function ActivityFeed({ onBack }) {
         </div>
       </div>
 
+      {/* List tags — quick filter by list name */}
+      {!loading && listTags.length > 1 && (
+        <div className="activity-list-tags">
+          <button
+            className={`activity-list-tag${filter.list === null ? " active" : ""}`}
+            onClick={() => setFilter((f) => ({ ...f, list: null }))}
+          >
+            Toutes les listes
+          </button>
+          {listTags.map((t) => (
+            <button
+              key={t.name}
+              className={`activity-list-tag${filter.list === t.name ? " active" : ""}`}
+              onClick={() => setFilter((f) => ({ ...f, list: f.list === t.name ? null : t.name }))}
+            >
+              {t.name} <span className="activity-list-tag-count">{t.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* CTA Banner */}
+      {filter.list && onChallenge && (
+        <div className="activity-cta">
+          <div className="activity-cta-text">
+            <span className="activity-cta-emoji">🔥</span>
+            <div>
+              <p className="activity-cta-title">
+                {filtered.length} personne{filtered.length > 1 ? "s ont" : " a"} classé <strong>{filter.list}</strong>
+              </p>
+              <p className="activity-cta-sub">Et toi, quel serait ton classement ? Prouve-le !</p>
+            </div>
+          </div>
+          <button
+            className="activity-cta-btn"
+            onClick={() => {
+              const ref = filtered[0];
+              if (ref) onChallenge(ref);
+            }}
+          >
+            {filtered.some((r) => r.mode === "bracket")
+              ? "⚔ Relever le défi"
+              : "📊 Faire mon classement"}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {loading ? (
         <div className="history-loading">Chargement…</div>
@@ -136,7 +195,15 @@ export default function ActivityFeed({ onBack }) {
                         <span className="activity-pseudo-anon">Anonyme</span>
                       )}
                     </td>
-                    <td data-label="Liste" className="activity-list-name">{r.list_name}</td>
+                    <td data-label="Liste">
+                      <button
+                        className="activity-list-link"
+                        onClick={() => setFilter((f) => ({ ...f, list: f.list === r.list_name ? null : r.list_name }))}
+                        title={`Filtrer par "${r.list_name}"`}
+                      >
+                        {r.list_name}
+                      </button>
+                    </td>
                     <td data-label="Mode">
                       <span className="badge" style={{ fontSize: "0.7rem" }}>
                         {r.mode === "bracket" ? "⚔ Bracket" : "📊 Classique"}
@@ -156,13 +223,24 @@ export default function ActivityFeed({ onBack }) {
                     <td data-label="Duels" style={{ textAlign: "center" }}>{r.comparisons_count}</td>
                     <td data-label="Date" className="activity-date">{formatDate(r.created_at)}</td>
                     <td data-label="">
-                      <button
-                        className="btn-ghost"
-                        onClick={() => navigate(`/ranking/${r.id}`)}
-                        style={{ fontSize: "0.7rem", padding: "0.3rem 0.6rem", whiteSpace: "nowrap" }}
-                      >
-                        Voir →
-                      </button>
+                      <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", justifyContent: "flex-end" }}>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => navigate(`/ranking/${r.id}`)}
+                          style={{ fontSize: "0.7rem", padding: "0.3rem 0.6rem", whiteSpace: "nowrap" }}
+                        >
+                          Voir
+                        </button>
+                        {onChallenge && (
+                          <button
+                            className="activity-row-cta"
+                            onClick={() => onChallenge(r)}
+                            title={r.mode === "bracket" ? "Refaire ce match" : "Faire ce classement"}
+                          >
+                            {r.mode === "bracket" ? "⚔ Défi" : "📊 À moi !"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

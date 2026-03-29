@@ -980,7 +980,18 @@ export default function App() {
 
         {/* ─────────────────────────────── ACTIVITY FEED */}
         {phase === "activity" && (
-          <ActivityFeed onBack={() => setPhase("input")} />
+          <ActivityFeed
+            onBack={() => setPhase("input")}
+            onChallenge={(ranking) => {
+              const items = ranking.items || [];
+              setInputText(items.join("\n"));
+              setListName(ranking.list_name);
+              setSelectedListId(ranking.list_id || null);
+              setMode(ranking.mode === "bracket" ? "bracket" : "classic");
+              setListFormat(null);
+              setPhase("input");
+            }}
+          />
         )}
 
         {/* ─────────────────────────────── HISTORY */}
