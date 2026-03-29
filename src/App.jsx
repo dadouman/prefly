@@ -17,7 +17,7 @@ import PublicProfile from "./PublicProfile";
 import RankingDetail from "./RankingDetail";
 import { saveRanking, migrateLocalRankings } from "./rankingService";
 import { supabase } from "./supabaseClient";
-import CommunityBracketPage, { CommunityBracketView, CommunityBracketList } from "./CommunityBracket";
+import CommunityBracketPage, { CommunityBracketView } from "./CommunityBracket";
 import "./CommunityBracket.css";
 
 // =====================================================================
@@ -455,10 +455,6 @@ export default function App() {
       setImageMap(map);
       setLoadingImages(false);
     });
-    if (mode === "community") {
-      navigate("/community/create");
-      return;
-    }
     if (mode === "bracket") {
       setPhase("bracket");
       return;
@@ -618,18 +614,11 @@ export default function App() {
       {/* ─── USER HEADER BAR ─── */}
       <div className="user-header-bar">
         <div className="user-header-left">
-          {(location.pathname !== "/" || (phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity")) && (
+          {(location.pathname.startsWith("/community") || (phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity")) && (
             <button className="user-header-home" onClick={() => { reset(); navigate("/"); }} title="Accueil">⌂</button>
           )}
         </div>
         <div className="user-header-right">
-          <button
-            className="user-header-history-btn"
-            onClick={() => navigate("/community")}
-            title="Tournois Communautaires"
-          >
-            🏆 Tournois
-          </button>
           <button
             className="user-header-history-btn"
             onClick={() => setPhase("activity")}
@@ -673,26 +662,8 @@ export default function App() {
       <Routes>
         <Route path="/profile/:pseudo" element={<PublicProfile />} />
         <Route path="/ranking/:id" element={<RankingDetail />} />
-        <Route path="/community" element={
-          <div className="root">
-            <CommunityBracketList onCreateNew={() => { navigate("/"); }} />
-          </div>
-        } />
-        <Route path="/community/create" element={
-          <div className="root">
-            <CommunityBracketPage
-              items={parsedItems}
-              listName={listName}
-              listId={selectedListId}
-              format={listFormat}
-            />
-          </div>
-        } />
-        <Route path="/community/:id" element={
-          <div className="root">
-            <CommunityBracketView />
-          </div>
-        } />
+        <Route path="/community" element={<CommunityBracketPage />} />
+        <Route path="/community/:id" element={<CommunityBracketView />} />
         <Route path="*" element={
       <div className="root">
 
@@ -779,18 +750,10 @@ export default function App() {
                   <span className="mode-label">Phase Finale</span>
                   <span className="mode-desc">Élimination directe</span>
                 </button>
-                <button
-                  className={`mode-btn${mode === "community" ? " mode-active" : ""}`}
-                  onClick={() => setMode("community")}
-                >
-                  <span className="mode-icon">🏆</span>
-                  <span className="mode-label">Communautaire</span>
-                  <span className="mode-desc">Votes collectifs en simultané</span>
-                </button>
               </div>
 
               <button className="btn-gold" onClick={handleStart} disabled={parsedItems.length < 2}>
-                {mode === "community" ? "Créer le Tournoi 🏆" : mode === "bracket" ? "Entrer dans l'Arène ⚔" : "Entrer dans l'Arène →"}
+                {mode === "bracket" ? "Entrer dans l'Arène ⚔" : "Entrer dans l'Arène →"}
               </button>
 
               {pausedSession && (

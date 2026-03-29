@@ -125,6 +125,18 @@ export async function getRecentPublicRankings({ limit = 50, offset = 0 } = {}) {
   return data || [];
 }
 
+// ─── GET RECENT COMMUNITY BRACKETS (ACTIVITY FEED) ───
+export async function getRecentCommunityBrackets({ limit = 50 } = {}) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("community_brackets")
+    .select("*, profiles:creator_id(pseudo, avatar_url)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 // ─── MIGRATE LOCAL RANKINGS TO SUPABASE ───
 export async function migrateLocalRankings(userId) {
   if (!supabase || !userId) return 0;

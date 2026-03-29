@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getRecentPublicRankings } from "./rankingService";
+import { getRecentPublicRankings, getRecentCommunityBrackets } from "./rankingService";
 
 export default function ActivityFeed({ onBack, onChallenge }) {
   const navigate = useNavigate();
@@ -12,8 +12,35 @@ export default function ActivityFeed({ onBack, onChallenge }) {
     (async () => {
       setLoading(true);
       try {
-        const data = await getRecentPublicRankings({ limit: 100 });
-        setRankings(data);
+        const [rankingsData, bracketsData] = await Promise.all([
+          getRecentPublicRankings({ limit: 100 }),
+          getRecentCommunityBrackets({ limit: 50 }),
+        ]);
+
+        // Normalize community brackets to fit the same shape
+        const normalizedBrackets = bracketsData.map((b) => ({
+          id: b.id,
+          _type: "community_bracket",
+          list_name: b.list_name || b.title,
+          mode: "tournament",
+          items: b.items,
+          result: b.champion ? [b.champion] : [],
+          comparisons_count: null,
+          created_at: b.created_at,
+          profiles: b.profiles,
+          // Extra bracket fields
+          _bracket_title: b.title,
+          _bracket_status: b.status,
+          _bracket_current_round: b.current_round,
+          _bracket_total_rounds: b.total_rounds,
+          _bracket_champion: b.champion,
+        }));
+
+        // Merge and sort by date
+        const merged = [...rankingsData, ...normalizedBrackets].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        setRankings(merged);
       } catch {
         setRankings([]);
       }
@@ -70,7 +97,7 @@ export default function ActivityFeed({ onBack, onChallenge }) {
         <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Actualités</p>
         <h2 className="logo" style={{ fontSize: "clamp(1.8rem, 5vw, 2.8rem)" }}>Derniers Classements</h2>
         <p style={{ marginTop: "0.6rem", color: "var(--text-dim)", fontSize: "0.82rem" }}>
-          Tous les classements publics de la communauté
+          Classements publics et tournois communautaires
         </p>
       </div>
 
@@ -84,7 +111,7 @@ export default function ActivityFeed({ onBack, onChallenge }) {
           className="history-search"
         />
         <div className="history-mode-filter">
-          {[["all", "Tous"], ["classic", "📊 Classement"], ["bracket", "⚔ Bracket"]].map(([val, label]) => (
+          {[["all", "Tous"], ["classic", "📊 Classement"], ["bracket", "⚔ Bracket"], ["tournament", "🏆 Tournoi"]].map(([val, label]) => (
             <button
               key={val}
               className={`history-filter-btn${filter.mode === val ? " active" : ""}`}
@@ -206,32 +233,50 @@ export default function ActivityFeed({ onBack, onChallenge }) {
                     </td>
                     <td data-label="Mode">
                       <span className="badge" style={{ fontSize: "0.7rem" }}>
-                        {r.mode === "bracket" ? "⚔ Bracket" : "📊 Classique"}
+                        {r.mode === "tournament"
+                          ? `🏆 Tournoi${r._bracket_status === "active" ? " (en cours)" : ""}`
+                          : r.mode === "bracket"
+                            ? "⚔ Bracket"
+                            : "📊 Classique"}
                       </span>
                     </td>
                     <td data-label="Top 3">
-                      <div className="activity-podium">
-                        {top.map((item, i) => (
-                          <span key={i} className="activity-podium-item">
-                            {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}{" "}
-                            {typeof item === "string" ? item : item.item || String(item)}
-                          </span>
-                        ))}
-                      </div>
+                      {r._type === "community_bracket" ? (
+                        <div className="activity-podium">
+                          {r._bracket_status === "finished" && r._bracket_champion ? (
+                            <span className="activity-podium-item">🏆 {r._bracket_champion}</span>
+                          ) : (
+                            <span style={{ color: "var(--text-dim)", fontSize: "0.78rem" }}>
+                              Tour {r._bracket_current_round + 1}/{r._bracket_total_rounds}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="activity-podium">
+                          {top.map((item, i) => (
+                            <span key={i} className="activity-podium-item">
+                              {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}{" "}
+                              {typeof item === "string" ? item : item.item || String(item)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td data-label="Éléments" style={{ textAlign: "center" }}>{r.items?.length || "?"}</td>
-                    <td data-label="Duels" style={{ textAlign: "center" }}>{r.comparisons_count}</td>
+                    <td data-label="Duels" style={{ textAlign: "center" }}>
+                      {r._type === "community_bracket" ? "—" : r.comparisons_count}
+                    </td>
                     <td data-label="Date" className="activity-date">{formatDate(r.created_at)}</td>
                     <td data-label="">
                       <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", justifyContent: "flex-end" }}>
                         <button
                           className="btn-ghost"
-                          onClick={() => navigate(`/ranking/${r.id}`)}
+                          onClick={() => navigate(r._type === "community_bracket" ? `/community/${r.id}` : `/ranking/${r.id}`)}
                           style={{ fontSize: "0.7rem", padding: "0.3rem 0.6rem", whiteSpace: "nowrap" }}
                         >
-                          Voir
+                          {r._type === "community_bracket" ? (r._bracket_status === "active" ? "Voter" : "Voir") : "Voir"}
                         </button>
-                        {onChallenge && (
+                        {onChallenge && !r._type && (
                           <button
                             className="activity-row-cta"
                             onClick={() => onChallenge(r)}
