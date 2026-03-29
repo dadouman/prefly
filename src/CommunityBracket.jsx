@@ -448,6 +448,24 @@ export function CommunityBracketView() {
   // ─── VOTE ───
   const handleVote = useCallback(async (matchId, side) => {
     if (!supabase || !user) return;
+    const oldVote = userVotes[matchId];
+
+    // Optimistic update: update counts locally immediately
+    setUserVotes(prev => ({ ...prev, [matchId]: side }));
+    setMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m;
+      let { votes_a, votes_b } = m;
+      if (oldVote) {
+        // Changing vote: decrement old side
+        if (oldVote === "a") votes_a--;
+        else votes_b--;
+      }
+      // Increment new side
+      if (side === "a") votes_a++;
+      else votes_b++;
+      return { ...m, votes_a, votes_b };
+    }));
+
     try {
       const { error: vErr } = await supabase.rpc("cast_community_vote", {
         p_match_id: matchId,
@@ -455,11 +473,29 @@ export function CommunityBracketView() {
         p_voted_for: side,
       });
       if (vErr) throw vErr;
-      setUserVotes(prev => ({ ...prev, [matchId]: side }));
     } catch (err) {
       console.error("Vote error:", err);
+      // Rollback on error
+      setUserVotes(prev => {
+        const copy = { ...prev };
+        if (oldVote) copy[matchId] = oldVote;
+        else delete copy[matchId];
+        return copy;
+      });
+      setMatches(prev => prev.map(m => {
+        if (m.id !== matchId) return m;
+        let { votes_a, votes_b } = m;
+        // Undo the optimistic update
+        if (side === "a") votes_a--;
+        else votes_b--;
+        if (oldVote) {
+          if (oldVote === "a") votes_a++;
+          else votes_b++;
+        }
+        return { ...m, votes_a, votes_b };
+      }));
     }
-  }, [user]);
+  }, [user, userVotes]);
 
   // ─── ADVANCE ROUND (creator only) ───
   const handleAdvanceRound = useCallback(async () => {
