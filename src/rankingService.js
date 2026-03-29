@@ -112,6 +112,19 @@ export async function deleteRanking(id, userId) {
   saveLocalRankings(local);
 }
 
+// ─── GET RECENT PUBLIC RANKINGS (ALL USERS — ACTIVITY FEED) ───
+export async function getRecentPublicRankings({ limit = 50, offset = 0 } = {}) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("rankings")
+    .select("*, profiles(pseudo, avatar_url)")
+    .eq("is_public", true)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) throw error;
+  return data || [];
+}
+
 // ─── MIGRATE LOCAL RANKINGS TO SUPABASE ───
 export async function migrateLocalRankings(userId) {
   if (!supabase || !userId) return 0;

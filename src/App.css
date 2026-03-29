@@ -3608,3 +3608,159 @@ a.user-header-pseudo:hover {
 .ranking-detail-back:hover {
   color: var(--gold);
 }
+
+/* =====================================================================
+   ACTIVITY FEED TABLE
+   ===================================================================== */
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.8rem;
+}
+
+.activity-table th {
+  background: rgba(184, 134, 11, 0.06);
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 0.7rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.activity-table td {
+  padding: 0.6rem 0.6rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+
+.activity-table tbody tr {
+  transition: background 0.15s;
+}
+
+.activity-table tbody tr:hover {
+  background: rgba(184, 134, 11, 0.03);
+}
+
+.activity-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.activity-pseudo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--gold);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.activity-pseudo-link:hover {
+  color: var(--gold-bright);
+  text-decoration: underline;
+}
+
+.activity-pseudo-anon {
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.activity-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.activity-list-name {
+  font-weight: 500;
+  color: var(--text);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-podium {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.activity-podium-item {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.activity-date {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* Mobile: switch to card layout */
+@media (max-width: 700px) {
+  .activity-table,
+  .activity-table thead,
+  .activity-table tbody,
+  .activity-table th,
+  .activity-table td,
+  .activity-table tr {
+    display: block;
+  }
+
+  .activity-table thead {
+    display: none;
+  }
+
+  .activity-table tbody tr {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 0.8rem;
+    padding: 0.8rem;
+    background: var(--surface);
+  }
+
+  .activity-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+    border-bottom: none;
+  }
+
+  .activity-table td::before {
+    content: attr(data-label);
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    min-width: 5rem;
+  }
+
+  .activity-list-name {
+    max-width: none;
+  }
+
+  .activity-podium-item {
+    max-width: none;
+  }
+}

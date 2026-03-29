@@ -11,6 +11,7 @@ import ShareCard from "./ShareCard";
 import { useAuth } from "./AuthContext";
 import AuthModal from "./AuthModal";
 import HistoryPanel from "./HistoryPanel";
+import ActivityFeed from "./ActivityFeed";
 import ComparisonView from "./ComparisonView";
 import PublicProfile from "./PublicProfile";
 import RankingDetail from "./RankingDetail";
@@ -610,11 +611,18 @@ export default function App() {
       {/* ─── USER HEADER BAR ─── */}
       <div className="user-header-bar">
         <div className="user-header-left">
-          {phase !== "input" && phase !== "admin" && phase !== "history" && (
+          {phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity" && (
             <button className="user-header-home" onClick={() => { reset(); navigate("/"); }} title="Accueil">⌂</button>
           )}
         </div>
         <div className="user-header-right">
+          <button
+            className="user-header-history-btn"
+            onClick={() => setPhase("activity")}
+            title="Actualités"
+          >
+            🌐 Actualités
+          </button>
           <button
             className="user-header-history-btn"
             onClick={() => setPhase("history")}
@@ -968,6 +976,11 @@ export default function App() {
 
             <ShareCard sorted={sorted} listName={listName} />
           </div>
+        )}
+
+        {/* ─────────────────────────────── ACTIVITY FEED */}
+        {phase === "activity" && (
+          <ActivityFeed onBack={() => setPhase("input")} />
         )}
 
         {/* ─────────────────────────────── HISTORY */}
