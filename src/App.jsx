@@ -332,6 +332,10 @@ export default function App() {
       setImageMap(map);
       setLoadingImages(false);
     });
+    if (mode === "community") {
+      navigate("/community/create");
+      return;
+    }
     if (mode === "bracket") {
       setPhase("bracket");
       return;
@@ -539,7 +543,19 @@ export default function App() {
       <Routes>
         <Route path="/profile/:pseudo" element={<PublicProfile />} />
         <Route path="/ranking/:id" element={<RankingDetail />} />
-        <Route path="/community" element={<CommunityBracketPage />} />
+        <Route path="/community" element={
+          <CommunityBracketPage />
+        } />
+        <Route path="/community/create" element={
+          <div className="root">
+            <CommunityBracketPage
+              items={parsedItems}
+              listName={listName}
+              listId={selectedListId}
+              format={listFormat}
+            />
+          </div>
+        } />
         <Route path="/community/:id" element={<CommunityBracketView />} />
         <Route path="*" element={
       <div className="root">
@@ -626,6 +642,14 @@ export default function App() {
                   <span className="mode-icon">⚔</span>
                   <span className="mode-label">Phase Finale</span>
                   <span className="mode-desc">Élimination directe</span>
+                </button>
+                <button
+                  className={`mode-btn${mode === "community" ? " mode-active community" : ""}`}
+                  onClick={() => setMode("community")}
+                >
+                  <span className="mode-icon">🏆</span>
+                  <span className="mode-label">Communautaire</span>
+                  <span className="mode-desc">Vote collectif en ligne</span>
                 </button>
               </div>
 
