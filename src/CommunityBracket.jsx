@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "./supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
+import { fetchItemImages, dismissImage } from "./imageSearch";
+import YouTubePlayer from "./YouTubePlayer";
 
 // =====================================================================
 // COMMUNITY BRACKET — Tournoi Communautaire
@@ -222,9 +224,23 @@ function CreateBracketForm({ items, listName, listId, format, onCreated, onCance
 }
 
 // =====================================================================
+// DISCOGRAPHY FORMAT HELPER
+// =====================================================================
+function parseDiscographyItem(item) {
+  const first = item.indexOf(" - ");
+  if (first === -1) return { song: item, meta: null };
+  const song = item.substring(0, first);
+  const rest = item.substring(first + 3);
+  const ld = rest.lastIndexOf(" - ");
+  const album = ld !== -1 ? rest.substring(0, ld) : rest;
+  const year = ld !== -1 ? rest.substring(ld + 3) : "";
+  return { song, meta: year ? `${album} · ${year}` : album };
+}
+
+// =====================================================================
 // MATCH VOTE CARD
 // =====================================================================
-function MatchVoteCard({ match, userVote, onVote, disabled, imageMap }) {
+function MatchVoteCard({ match, userVote, onVote, disabled, imageMap, onDismissImage, format, showYouTube }) {
   const totalVotes = match.votes_a + match.votes_b;
   const pctA = totalVotes > 0 ? Math.round((match.votes_a / totalVotes) * 100) : 50;
   const pctB = 100 - pctA;
@@ -242,6 +258,32 @@ function MatchVoteCard({ match, userVote, onVote, disabled, imageMap }) {
 
   const isFinished = !!match.winner;
 
+  const renderItemLabel = (item) => {
+    if (format === "discography") {
+      const { song, meta } = parseDiscographyItem(item);
+      return (
+        <span className="cb-vote-name">
+          <span className="cb-disco-song">{song}</span>
+          {meta && <span className="cb-disco-meta">{meta}</span>}
+        </span>
+      );
+    }
+    return <span className="cb-vote-name">{item}</span>;
+  };
+
+  const renderThumb = (item) => {
+    const url = imageMap?.get(item);
+    if (!url) return null;
+    return (
+      <span className="cb-vote-thumb-wrap">
+        <img src={url} alt="" className="cb-vote-thumb" />
+        {onDismissImage && (
+          <button className="cb-img-dismiss" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDismissImage(item); }} title="Autre image">✕</button>
+        )}
+      </span>
+    );
+  };
+
   return (
     <div className={`cb-match-card${isFinished ? " cb-match-finished" : ""}`}>
       <div className="cb-match-vs-label">VS</div>
@@ -252,10 +294,9 @@ function MatchVoteCard({ match, userVote, onVote, disabled, imageMap }) {
         onClick={() => !disabled && onVote(match.id, "a")}
         disabled={disabled || isFinished}
       >
-        {imageMap?.get(match.item_a) && (
-          <img src={imageMap.get(match.item_a)} alt="" className="cb-vote-thumb" />
-        )}
-        <span className="cb-vote-name">{match.item_a}</span>
+        {renderThumb(match.item_a)}
+        {renderItemLabel(match.item_a)}
+        {showYouTube && <YouTubePlayer item={match.item_a} />}
         <div className="cb-vote-bar-wrap">
           <div className="cb-vote-bar cb-bar-a" style={{ width: `${pctA}%` }} />
         </div>
@@ -268,10 +309,9 @@ function MatchVoteCard({ match, userVote, onVote, disabled, imageMap }) {
         onClick={() => !disabled && onVote(match.id, "b")}
         disabled={disabled || isFinished}
       >
-        {imageMap?.get(match.item_b) && (
-          <img src={imageMap.get(match.item_b)} alt="" className="cb-vote-thumb" />
-        )}
-        <span className="cb-vote-name">{match.item_b}</span>
+        {renderThumb(match.item_b)}
+        {renderItemLabel(match.item_b)}
+        {showYouTube && <YouTubePlayer item={match.item_b} />}
         <div className="cb-vote-bar-wrap">
           <div className="cb-vote-bar cb-bar-b" style={{ width: `${pctB}%` }} />
         </div>
@@ -358,7 +398,8 @@ export function CommunityBracketView() {
   const [cancelling, setCancelling] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [imageMap] = useState(new Map());
+  const [imageMap, setImageMap] = useState(new Map());
+  const [showYouTube, setShowYouTube] = useState(false);
 
   // Find voting deadline for current round
   const currentDeadline = useMemo(() => {
@@ -367,6 +408,22 @@ export function CommunityBracketView() {
   }, [matches, bracket?.current_round]);
 
   const countdown = useCountdown(currentDeadline);
+
+  // ─── FETCH IMAGES WHEN BRACKET LOADS ───
+  useEffect(() => {
+    if (!bracket?.items || bracket.items.length === 0) return;
+    fetchItemImages(bracket.items).then(map => setImageMap(map));
+  }, [bracket?.id]);
+
+  // ─── DISMISS IMAGE (cycle to next Wikipedia result) ───
+  const handleDismissImage = useCallback((term) => {
+    const nextUrl = dismissImage(term);
+    setImageMap(prev => {
+      const copy = new Map(prev);
+      copy.set(term, nextUrl);
+      return copy;
+    });
+  }, []);
 
   // ─── LOAD BRACKET + MATCHES ───
   const loadBracket = useCallback(async () => {
@@ -730,6 +787,13 @@ export function CommunityBracketView() {
             ⚙
           </button>
         )}
+        <button
+          className={`cb-yt-toggle${showYouTube ? " active" : ""}`}
+          onClick={() => setShowYouTube(v => !v)}
+          title={showYouTube ? "Masquer YouTube" : "Afficher YouTube"}
+        >
+          🎵
+        </button>
       </div>
 
       {/* ─── ADMIN PANEL (creator only) ─── */}
@@ -843,6 +907,9 @@ export function CommunityBracketView() {
               onVote={handleVote}
               disabled={!user || countdown?.expired}
               imageMap={imageMap}
+              onDismissImage={handleDismissImage}
+              format={bracket?.format}
+              showYouTube={showYouTube}
             />
           ))}
         </div>
