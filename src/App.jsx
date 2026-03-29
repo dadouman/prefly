@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Routes, Route, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation, Link } from "react-router-dom";
 import "./App.css";
 import AdminPanel from "./AdminPanel";
 import ListSelector from "./ListSelector";
@@ -415,6 +415,7 @@ export default function App() {
   const [selectedListId, setSelectedListId] = useState(null);
   const fileRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile, isAuthenticated, signOut, loading: authLoading } = useAuth();
   const isAnonymous = user?.is_anonymous || user?.email?.endsWith("@prefly.app");
 
@@ -617,7 +618,7 @@ export default function App() {
       {/* ─── USER HEADER BAR ─── */}
       <div className="user-header-bar">
         <div className="user-header-left">
-          {phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity" && (
+          {(location.pathname !== "/" || (phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity")) && (
             <button className="user-header-home" onClick={() => { reset(); navigate("/"); }} title="Accueil">⌂</button>
           )}
         </div>

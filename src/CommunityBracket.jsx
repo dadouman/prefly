@@ -403,7 +403,11 @@ export function CommunityBracketView() {
           const voteMap = {};
           for (const v of (votes || [])) voteMap[v.match_id] = v.voted_for;
           setUserVotes(voteMap);
+        } else {
+          setUserVotes({});
         }
+      } else {
+        setUserVotes({});
       }
     } catch (err) {
       setError(err.message);
@@ -504,8 +508,25 @@ export function CommunityBracketView() {
     setAdvancing(true);
 
     try {
-      const currentRound = bracket.current_round;
-      const currentMatches = matches.filter(m => m.round === currentRound);
+      // Re-fetch fresh state to avoid stale closure
+      const { data: freshBracket } = await supabase
+        .from("community_brackets")
+        .select("*")
+        .eq("id", bracket.id)
+        .single();
+      if (!freshBracket || freshBracket.status !== "active") {
+        await loadBracket();
+        return;
+      }
+
+      const { data: freshMatches } = await supabase
+        .from("community_bracket_matches")
+        .select("*")
+        .eq("bracket_id", bracket.id)
+        .eq("round", freshBracket.current_round);
+
+      const currentRound = freshBracket.current_round;
+      const currentMatches = freshMatches || [];
 
       // Determine winners for non-BYE matches
       const updates = [];
@@ -532,7 +553,7 @@ export function CommunityBracketView() {
       const nextRound = currentRound + 1;
 
       // Check if tournament is complete
-      if (nextRound >= bracket.total_rounds) {
+      if (nextRound >= freshBracket.total_rounds) {
         // Tournament finished — the final match winner is the champion
         const finalWinner = winners[0]; // Only 1 match in the final round
         await supabase
@@ -546,7 +567,7 @@ export function CommunityBracketView() {
           .eq("id", bracket.id);
       } else {
         // Build next round matches
-        const votingEndsAt = new Date(Date.now() + bracket.round_duration_hours * 3600000).toISOString();
+        const votingEndsAt = new Date(Date.now() + freshBracket.round_duration_hours * 3600000).toISOString();
         const nextMatches = [];
         for (let i = 0; i < winners.length; i += 2) {
           const a = winners[i] || null;
@@ -583,7 +604,7 @@ export function CommunityBracketView() {
     } finally {
       setAdvancing(false);
     }
-  }, [user, bracket, matches, loadBracket]);
+  }, [user, bracket, loadBracket]);
 
   // ─── CANCEL TOURNAMENT (creator only) ───
   const handleCancelTournament = useCallback(async () => {
