@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { getPrebuiltLists } from "./storage";
+import { getPublicLists } from "./storage";
 
 export default function ListSelector({ onSelect }) {
   const [lists, setLists] = useState([]);
 
   useEffect(() => {
-    getPrebuiltLists().then(setLists);
+    getPublicLists().then(setLists);
   }, []);
 
   if (lists.length === 0) return null;

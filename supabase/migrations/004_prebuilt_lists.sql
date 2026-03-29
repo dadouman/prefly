@@ -10,10 +10,14 @@ create table if not exists public.prebuilt_lists (
   format text default '',
   items jsonb not null default '[]'::jsonb,
   item_attributes jsonb default '{}'::jsonb,
+  is_public boolean default false,
   sort_order integer default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Add is_public column if upgrading from a previous version
+alter table public.prebuilt_lists add column if not exists is_public boolean default false;
 
 -- Everyone can read lists
 alter table public.prebuilt_lists enable row level security;

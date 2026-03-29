@@ -9,6 +9,7 @@ import {
   isAdminConfigured,
   setAdminPin,
   verifyAdminPin,
+  toggleListVisibility,
 } from "./storage";
 import { supabase } from "./supabaseClient";
 
@@ -609,6 +610,10 @@ export default function AdminPanel({ onBack }) {
     setLists(await getPrebuiltLists());
   };
 
+  const handleToggleVisibility = async (id, currentlyPublic) => {
+    setLists(await toggleListVisibility(id, !currentlyPublic));
+  };
+
   return (
     <div className="fade" style={{ width: "100%", maxWidth: editing ? 900 : 560 }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
@@ -654,12 +659,25 @@ export default function AdminPanel({ onBack }) {
                       </span>
                     )}
                     <span style={{ margin: "0 0.4rem", opacity: 0.4 }}>·</span>
+                    {list.isPublic
+                      ? <span style={{ color: "#27ae60" }}>🌐 Public</span>
+                      : <span style={{ color: "#95a5a6" }}>🔒 Privé</span>
+                    }
+                    <span style={{ margin: "0 0.4rem", opacity: 0.4 }}>·</span>
                     {list.items.slice(0, 3).join(", ")}
                     {list.items.length > 3 && "…"}
                   </div>
                 </div>
 
                 <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                  <button
+                    className={`admin-action-btn${list.isPublic ? " active" : ""}`}
+                    onClick={() => handleToggleVisibility(list.id, list.isPublic)}
+                    title={list.isPublic ? "Rendre privé" : "Rendre public"}
+                    style={list.isPublic ? { color: "#27ae60", borderColor: "#27ae60" } : {}}
+                  >
+                    {list.isPublic ? "🌐" : "🔒"}
+                  </button>
                   <button className="admin-action-btn edit" onClick={() => setEditing(list.id)} title="Modifier">
                     ✎
                   </button>

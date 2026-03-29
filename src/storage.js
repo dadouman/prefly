@@ -23,6 +23,7 @@ function rowToList(row) {
     ...(row.item_attributes && Object.keys(row.item_attributes).length > 0
       ? { itemAttributes: row.item_attributes }
       : {}),
+    isPublic: !!row.is_public,
   };
 }
 
@@ -35,6 +36,7 @@ function listToRow(list) {
     format: list.format || "",
     items: list.items || [],
     item_attributes: list.itemAttributes || {},
+    is_public: !!list.isPublic,
     updated_at: new Date().toISOString(),
   };
 }
@@ -96,6 +98,35 @@ export async function getPrebuiltLists() {
   }
   // Supabase not available — fall back to static file
   return await fetchRemoteLists();
+}
+
+// Returns only lists marked as public (for non-admin users).
+export async function getPublicLists() {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("prebuilt_lists")
+        .select("*")
+        .eq("is_public", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (!error && data) return data.map(rowToList);
+    } catch { /* fall through */ }
+  }
+  // Fallback: filter static lists (all treated as public)
+  const all = await fetchRemoteLists();
+  return all;
+}
+
+// Toggle visibility of a list
+export async function toggleListVisibility(id, isPublic) {
+  if (supabase) {
+    await supabase
+      .from("prebuilt_lists")
+      .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+  return await getPrebuiltLists();
 }
 
 // ── Admin CRUD (writes to Supabase) ─────────────────────────────────
