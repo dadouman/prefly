@@ -355,6 +355,9 @@ export function CommunityBracketView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [advancing, setAdvancing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [imageMap] = useState(new Map());
 
   // Find voting deadline for current round
@@ -546,6 +549,29 @@ export function CommunityBracketView() {
     }
   }, [user, bracket, matches, loadBracket]);
 
+  // ─── CANCEL TOURNAMENT (creator only) ───
+  const handleCancelTournament = useCallback(async () => {
+    if (!supabase || !user || !bracket) return;
+    if (bracket.creator_id !== user.id) return;
+    setCancelling(true);
+    try {
+      await supabase
+        .from("community_brackets")
+        .update({
+          status: "cancelled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bracket.id);
+      await loadBracket();
+      setConfirmCancel(false);
+      setShowAdminPanel(false);
+    } catch (err) {
+      console.error("Cancel error:", err);
+    } finally {
+      setCancelling(false);
+    }
+  }, [user, bracket, loadBracket]);
+
   // ─── RENDER ───
   if (loading) {
     return (
@@ -569,9 +595,24 @@ export function CommunityBracketView() {
   const currentRoundMatches = matches
     .filter(m => m.round === bracket.current_round && !m.is_bye)
     .sort((a, b) => a.match_index - b.match_index);
-  const canAdvance = isCreator && bracket.status === "active" && (
-    countdown?.expired || currentRoundMatches.every(m => (m.votes_a + m.votes_b) > 0)
-  );
+  const totalVotesThisRound = currentRoundMatches.reduce((sum, m) => sum + m.votes_a + m.votes_b, 0);
+  const matchesWithVotes = currentRoundMatches.filter(m => (m.votes_a + m.votes_b) > 0).length;
+
+  // ─── CANCELLED ───
+  if (bracket.status === "cancelled") {
+    return (
+      <div className="cb-page fade">
+        <div className="cb-champion-screen">
+          <div className="cb-ornament">✦ ✦ ✦</div>
+          <h1 className="cb-champion-title" style={{ color: "var(--text-dim)" }}>Tournoi annulé</h1>
+          <p className="cb-champion-subtitle">Ce tournoi a été annulé par son créateur.</p>
+          <div className="cb-actions">
+            <button className="btn-ghost" onClick={() => navigate("/community")}>← Tous les tournois</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── FINISHED ───
   if (bracket.status === "finished") {
@@ -621,32 +662,87 @@ export function CommunityBracketView() {
         {countdown?.expired && (
           <div className="cb-countdown cb-countdown-expired">
             <span className="cb-countdown-label">Vote terminé !</span>
-            {isCreator && (
-              <button
-                className="btn-gold cb-advance-btn"
-                onClick={handleAdvanceRound}
-                disabled={advancing}
-              >
-                {advancing ? "Avancement…" : "Passer au tour suivant →"}
-              </button>
-            )}
           </div>
+        )}
+        {isCreator && (
+          <button
+            className={`cb-admin-toggle${showAdminPanel ? " active" : ""}`}
+            onClick={() => setShowAdminPanel(v => !v)}
+            title="Panneau admin"
+          >
+            ⚙
+          </button>
         )}
       </div>
 
-      {/* Creator controls */}
-      {isCreator && !countdown?.expired && canAdvance && (
-        <div className="cb-creator-controls">
-          <button
-            className="btn-gold cb-advance-btn"
-            onClick={handleAdvanceRound}
-            disabled={advancing}
-          >
-            {advancing ? "Avancement…" : "Avancer le tour maintenant →"}
-          </button>
-          <span className="cb-creator-hint">
-            Vous pouvez avancer manuellement avant la fin du temps
-          </span>
+      {/* ─── ADMIN PANEL (creator only) ─── */}
+      {isCreator && showAdminPanel && (
+        <div className="cb-admin-panel">
+          <div className="cb-admin-header">
+            <span className="cb-admin-title">⚙ Panneau Administrateur</span>
+            <button className="cb-admin-close" onClick={() => { setShowAdminPanel(false); setConfirmCancel(false); }}>✕</button>
+          </div>
+
+          <div className="cb-admin-stats">
+            <div className="cb-admin-stat">
+              <span className="cb-admin-stat-value">{totalVotesThisRound}</span>
+              <span className="cb-admin-stat-label">votes ce tour</span>
+            </div>
+            <div className="cb-admin-stat">
+              <span className="cb-admin-stat-value">{matchesWithVotes}/{currentRoundMatches.length}</span>
+              <span className="cb-admin-stat-label">matchs avec votes</span>
+            </div>
+            <div className="cb-admin-stat">
+              <span className="cb-admin-stat-value">Tour {bracket.current_round + 1}/{bracket.total_rounds}</span>
+              <span className="cb-admin-stat-label">progression</span>
+            </div>
+          </div>
+
+          <div className="cb-admin-section">
+            <h4 className="cb-admin-section-title">Avancer le tournoi</h4>
+            <p className="cb-admin-section-desc">
+              Mettre fin au vote en cours et passer au tour suivant immédiatement.
+              Les matchs sans vote seront tranchés en faveur du premier élément (A).
+            </p>
+            <button
+              className="btn-gold cb-advance-btn"
+              onClick={handleAdvanceRound}
+              disabled={advancing}
+            >
+              {advancing ? "Avancement…" : countdown?.expired ? "Passer au tour suivant →" : "⚡ Forcer le passage au tour suivant"}
+            </button>
+          </div>
+
+          <div className="cb-admin-section cb-admin-danger">
+            <h4 className="cb-admin-section-title">Zone dangereuse</h4>
+            {!confirmCancel ? (
+              <button
+                className="cb-cancel-btn"
+                onClick={() => setConfirmCancel(true)}
+              >
+                Annuler le tournoi
+              </button>
+            ) : (
+              <div className="cb-confirm-cancel">
+                <p className="cb-confirm-text">⚠ Cette action est irréversible. Le tournoi sera définitivement annulé.</p>
+                <div className="cb-confirm-actions">
+                  <button
+                    className="cb-cancel-confirm-btn"
+                    onClick={handleCancelTournament}
+                    disabled={cancelling}
+                  >
+                    {cancelling ? "Annulation…" : "Confirmer l'annulation"}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setConfirmCancel(false)}
+                  >
+                    Non, garder
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
