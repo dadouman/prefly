@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "./supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
-import { fetchItemImages, dismissImage } from "./imageSearch";
+import { fetchItemImages, dismissImage, setImageSource } from "./imageSearch";
+import { getImageSourcePref } from "./storage";
 import YouTubePlayer from "./YouTubePlayer";
 
 // =====================================================================
@@ -454,6 +455,7 @@ export function CommunityBracketView() {
   // ─── FETCH IMAGES WHEN BRACKET LOADS ───
   useEffect(() => {
     if (!bracket?.items || bracket.items.length === 0) return;
+    setImageSource(getImageSourcePref());
     fetchItemImages(bracket.items).then(map => setImageMap(map));
   }, [bracket?.id]);
 

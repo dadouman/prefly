@@ -1,31 +1,36 @@
 // =====================================================================
-// IMAGE SEARCH — Fetches thumbnails from Wikipedia for list items
-// Uses Wikipedia search API (free, no API key, CORS-friendly)
+// IMAGE SEARCH — Fetches thumbnails for list items
+// Supports Wikipedia (default) and TMDb sources
 // =====================================================================
 
-// Cache stores { urls: string[], index: number } per term
+// Cache stores { urls: string[], index: number } per "source:term" key
 const cache = new Map();
+
+// Current source: "wikipedia" | "tmdb"
+let currentSource = "wikipedia";
+
+export function setImageSource(source) {
+  currentSource = source;
+}
+
+export function getImageSource() {
+  return currentSource;
+}
 
 const WIKI_API = "https://fr.wikipedia.org/w/api.php";
 const WIKI_API_EN = "https://en.wikipedia.org/w/api.php";
 const THUMB_SIZE = 200;
 const RESULTS_PER_SEARCH = 8;
 
+function cacheKey(term) {
+  return `${currentSource}:${term}`;
+}
+
 /**
- * Fetch a thumbnail for a single item via Wikipedia search.
- * Fetches multiple results and stores them for cycling.
- * Tries French Wikipedia first, then English.
+ * Fetch a thumbnail via Wikipedia search.
  */
-async function fetchSingleImage(term) {
-  if (cache.has(term)) {
-    const entry = cache.get(term);
-    return entry.urls[entry.index] ?? null;
-  }
-
-  // For discography format, extract just the song name
-  const searchTerm = extractSearchTerm(term);
+async function fetchFromWikipedia(searchTerm) {
   const allUrls = [];
-
   for (const api of [WIKI_API, WIKI_API_EN]) {
     try {
       const params = new URLSearchParams({
@@ -38,25 +43,54 @@ async function fetchSingleImage(term) {
         format: "json",
         origin: "*",
       });
-
       const res = await fetch(`${api}?${params}`);
       if (!res.ok) continue;
-
       const data = await res.json();
       const pages = data.query?.pages;
       if (!pages) continue;
-
       for (const page of Object.values(pages)) {
         const url = page?.thumbnail?.source;
         if (url && !allUrls.includes(url)) allUrls.push(url);
       }
-      if (allUrls.length > 0) break; // found results on this wiki, no need to try next
+      if (allUrls.length > 0) break;
     } catch {
       // Network error, try next API
     }
   }
+  return allUrls;
+}
 
-  cache.set(term, { urls: allUrls, index: 0 });
+/**
+ * Fetch a thumbnail via our TMDb serverless proxy.
+ */
+async function fetchFromTMDb(searchTerm) {
+  try {
+    const params = new URLSearchParams({ q: searchTerm });
+    const res = await fetch(`/api/tmdb-search?${params}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.images || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch a thumbnail for a single item using the current source.
+ */
+async function fetchSingleImage(term) {
+  const key = cacheKey(term);
+  if (cache.has(key)) {
+    const entry = cache.get(key);
+    return entry.urls[entry.index] ?? null;
+  }
+
+  const searchTerm = extractSearchTerm(term);
+  const allUrls = currentSource === "tmdb"
+    ? await fetchFromTMDb(searchTerm)
+    : await fetchFromWikipedia(searchTerm);
+
+  cache.set(key, { urls: allUrls, index: 0 });
   return allUrls[0] ?? null;
 }
 
@@ -81,10 +115,10 @@ function extractSearchTerm(item) {
  * Dismiss current image for a term and return the next one (or null).
  */
 export function dismissImage(term) {
-  const entry = cache.get(term);
+  const key = cacheKey(term);
+  const entry = cache.get(key);
   if (!entry || entry.urls.length === 0) return null;
   entry.index = (entry.index + 1) % entry.urls.length;
-  // If we've looped back to 0, all images have been seen — still return it
   return entry.urls[entry.index] ?? null;
 }
 

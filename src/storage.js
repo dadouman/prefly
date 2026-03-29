@@ -130,3 +130,16 @@ export function verifyAdminPin(pin) {
 export function isAdminConfigured() {
   return !!getAdminPin();
 }
+
+// =====================================================================
+// IMAGE SOURCE PREFERENCE — Wikipedia / TMDb
+// =====================================================================
+const IMG_SOURCE_KEY = "arena_image_source";
+
+export function getImageSourcePref() {
+  return localStorage.getItem(IMG_SOURCE_KEY) || "wikipedia";
+}
+
+export function setImageSourcePref(source) {
+  localStorage.setItem(IMG_SOURCE_KEY, source);
+}

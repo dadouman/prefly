@@ -5,8 +5,8 @@ import AdminPanel from "./AdminPanel";
 import ListSelector from "./ListSelector";
 import BracketArena from "./BracketArena";
 import "./BracketArena.css";
-import { savePausedSession, loadPausedSession, clearPausedSession } from "./storage";
-import { fetchItemImages, dismissImage } from "./imageSearch";
+import { savePausedSession, loadPausedSession, clearPausedSession, getImageSourcePref, setImageSourcePref } from "./storage";
+import { fetchItemImages, dismissImage, setImageSource } from "./imageSearch";
 import ShareCard from "./ShareCard";
 import { useAuth } from "./AuthContext";
 import AuthModal from "./AuthModal";
@@ -17,7 +17,7 @@ import PublicProfile from "./PublicProfile";
 import RankingDetail from "./RankingDetail";
 import { saveRanking, migrateLocalRankings } from "./rankingService";
 import { supabase } from "./supabaseClient";
-import CommunityBracketPage, { CommunityBracketView } from "./CommunityBracket";
+import CommunityBracketPage, { CommunityBracketView, CommunityBracketList } from "./CommunityBracket";
 import "./CommunityBracket.css";
 import YouTubePlayer from "./YouTubePlayer";
 
@@ -264,10 +264,61 @@ function LivePanel({ snapshot, format, imageMap, onDismissImage }) {
 }
 
 // =====================================================================
+// HOME PAGE — Community Brackets Preview
+// =====================================================================
+function HomeCommunityPreview() {
+  const [brackets, setBrackets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return; }
+    supabase
+      .from("community_brackets")
+      .select("id, title, status, items, current_round, total_rounds, champion, created_at, profiles(pseudo)")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .then(({ data, error }) => {
+        if (!error) setBrackets(data || []);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p className="home-community-loading">Chargement…</p>;
+  if (brackets.length === 0) return <p className="home-community-empty">Aucun vote en cours pour le moment.</p>;
+
+  return (
+    <div className="home-community-grid">
+      {brackets.map(b => (
+        <div
+          key={b.id}
+          className="home-community-card"
+          onClick={() => navigate(`/community/${b.id}`)}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="home-community-card-title">{b.title}</div>
+          <div className="home-community-card-meta">
+            <span>{b.items?.length || 0} combattants</span>
+            <span>·</span>
+            <span>Tour {b.current_round + 1}/{b.total_rounds}</span>
+          </div>
+          <div className="home-community-card-creator">
+            par {b.profiles?.pseudo || "Anonyme"}
+          </div>
+          <div className="home-community-card-badge">⚔ En cours</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =====================================================================
 // APP
 // =====================================================================
 export default function App() {
-  const [phase, setPhase] = useState("input");
+  const [phase, setPhase] = useState("home");
   const [inputText, setInputText] = useState("");
   const [sortState, setSortState] = useState(null);
   const [count, setCount] = useState(0);
@@ -281,6 +332,11 @@ export default function App() {
   const [pausedSession, setPausedSession] = useState(null);
   const [mode, setMode] = useState("classic"); // "classic" or "bracket"
   const [youtubeLinks, setYoutubeLinks] = useState(false);
+  const [imageSource, setImageSourceState] = useState(() => {
+    const saved = getImageSourcePref();
+    setImageSource(saved);
+    return saved;
+  });
   const [imageMap, setImageMap] = useState(new Map());
   const [loadingImages, setLoadingImages] = useState(false);
   const [listName, setListName] = useState(null);
@@ -391,12 +447,12 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const reset = () => { setPhase("input"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setListName(null); setSelectedListId(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); setLastSavedRanking(null); setShowComparison(false); setViewingRanking(null); };
+  const reset = () => { setPhase("home"); setInputText(""); setSortState(null); setSorted([]); setListFormat(null); setListName(null); setSelectedListId(null); setMode("classic"); setYoutubeLinks(false); setSortHistory([]); setPausedSession(loadPausedSession()); setImageMap(new Map()); setLastSavedRanking(null); setShowComparison(false); };
 
   const handlePause = () => {
     savePausedSession({ sortState, count, total, listFormat, inputText, youtubeLinks });
     setPausedSession(loadPausedSession());
-    setPhase("input"); setSortState(null); setSorted([]);
+    setPhase("home"); setSortState(null); setSorted([]);
   };
 
   const handleResume = () => {
@@ -495,11 +551,19 @@ export default function App() {
       {/* ─── USER HEADER BAR ─── */}
       <div className="user-header-bar">
         <div className="user-header-left">
-          {(location.pathname.startsWith("/community") || (phase !== "input" && phase !== "admin" && phase !== "history" && phase !== "activity")) && (
+          {(location.pathname !== "/" || phase !== "home") && (
             <button className="user-header-home" onClick={() => { reset(); navigate("/"); }} title="Accueil">⌂</button>
           )}
+          <Link to="/" className="user-header-brand" onClick={(e) => { e.preventDefault(); reset(); navigate("/"); }}>L'Arène</Link>
         </div>
         <div className="user-header-right">
+          <button
+            className="user-header-history-btn"
+            onClick={() => navigate("/community")}
+            title="Tournois communautaires"
+          >
+            🏆 Communauté
+          </button>
           <button
             className="user-header-history-btn"
             onClick={() => setPhase("activity")}
@@ -564,21 +628,85 @@ export default function App() {
         <Route path="*" element={
       <div className="root">
 
-        {/* ─────────────────────────────── ADMIN */}
-        {phase === "admin" && (
-          <AdminPanel onBack={() => setPhase("input")} />
-        )}
-
-        {/* ─────────────────────────────── INPUT */}
-        {phase === "input" && (
-          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
+        {/* ─────────────────────────────── HOME */}
+        {phase === "home" && (
+          <div className="fade home-page" style={{ width: "100%", maxWidth: 700 }}>
             <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
               <div className="ornament" style={{ marginBottom: "0.8rem" }}>✦ ✦ ✦</div>
               <p className="subtitle" style={{ marginBottom: "0.7rem" }}>Tournoi de Classement</p>
               <h1 className="logo" style={{ fontSize: "clamp(2.2rem, 7vw, 3.8rem)" }}>L'Arène</h1>
               <p style={{ marginTop: "1rem", color: "var(--text-dim)", fontSize: "0.85rem", lineHeight: 1.6, letterSpacing: "0.04em" }}>
-                Classez votre liste entière grâce à des duels 1 vs 1
+                Classez n'importe quelle liste grâce à des duels 1 vs 1
               </p>
+            </div>
+
+            {/* Quick actions */}
+            <div className="home-actions">
+              <button className="home-action-card" onClick={() => setPhase("input")}>
+                <span className="home-action-icon">📊</span>
+                <span className="home-action-title">Nouveau Classement</span>
+                <span className="home-action-desc">Classez votre liste par duels successifs</span>
+              </button>
+              <button className="home-action-card" onClick={() => navigate("/community")}>
+                <span className="home-action-icon">🏆</span>
+                <span className="home-action-title">Tournois Communautaires</span>
+                <span className="home-action-desc">Votez ensemble, la communauté décide</span>
+              </button>
+            </div>
+
+            {/* Paused session */}
+            {pausedSession && (
+              <div className="paused-card" style={{ marginTop: "1.5rem" }}>
+                <div className="paused-card-info">
+                  <span className="paused-icon">⏸</span>
+                  <div>
+                    <p className="paused-title">Classement en pause</p>
+                    <p className="paused-meta">
+                      {parseInput(pausedSession.inputText).length} éléments · {pausedSession.count} / ~{pausedSession.total} comparaisons
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.6rem" }}>
+                  <button className="btn-gold" onClick={handleResume} style={{ fontSize: "0.82rem", padding: "0.55rem 1.2rem" }}>
+                    ▶ Reprendre
+                  </button>
+                  <button className="btn-ghost" onClick={handleDiscardPaused} style={{ fontSize: "0.75rem", padding: "0.55rem 0.8rem" }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Active community brackets preview */}
+            <div className="home-community-section">
+              <div className="home-section-header">
+                <h2 className="home-section-title">🔥 Votes en cours</h2>
+                <Link to="/community" className="home-section-link">Voir tout →</Link>
+              </div>
+              <HomeCommunityPreview />
+            </div>
+
+            <button
+              className="admin-link"
+              onClick={() => setPhase("admin")}
+            >
+              ⚙ Administration
+            </button>
+          </div>
+        )}
+
+        {/* ─────────────────────────────── ADMIN */}
+        {phase === "admin" && (
+          <AdminPanel onBack={() => setPhase("home")} />
+        )}
+
+        {/* ─────────────────────────────── INPUT */}
+        {phase === "input" && (
+          <div className="fade" style={{ width: "100%", maxWidth: 520 }}>
+            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+              <div className="ornament" style={{ marginBottom: "0.8rem" }}>✦ ✦ ✦</div>
+              <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Nouveau Classement</p>
+              <h2 style={{ fontFamily: "Cinzel, serif", fontWeight: 900, fontSize: "clamp(1.4rem, 4vw, 2rem)", color: "var(--text)", letterSpacing: "0.05em" }}>Préparez votre liste</h2>
             </div>
 
             <div className="card" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.4rem" }}>
@@ -629,6 +757,27 @@ export default function App() {
                 <span className="yt-toggle-label">Ajouter des liens YouTube</span>
               </label>
 
+              {/* Image source selector */}
+              <div className="img-source-toggle">
+                <span className="img-source-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-5.5z"/></svg>
+                </span>
+                <span className="img-source-label">Images :</span>
+                <select
+                  className="img-source-select"
+                  value={imageSource}
+                  onChange={e => {
+                    const src = e.target.value;
+                    setImageSourceState(src);
+                    setImageSourcePref(src);
+                    setImageSource(src);
+                  }}
+                >
+                  <option value="wikipedia">Wikipedia</option>
+                  <option value="tmdb">TMDb (films, séries, musique)</option>
+                </select>
+              </div>
+
               {/* Mode selector */}
               <div className="mode-selector">
                 <button
@@ -661,39 +810,6 @@ export default function App() {
                 {mode === "bracket" ? "Entrer dans l'Arène ⚔" : "Entrer dans l'Arène →"}
               </button>
 
-              {pausedSession && (
-                <>
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                    <div className="hr" style={{ flex: 1 }} />
-                    <span style={{ fontSize: "0.65rem", color: "var(--text-faint)", letterSpacing: "0.3em" }}>SESSION EN PAUSE</span>
-                    <div className="hr" style={{ flex: 1 }} />
-                  </div>
-
-                  <div className="paused-card">
-                    <div className="paused-card-info">
-                      <span className="paused-icon">⏸</span>
-                      <div>
-                        <p className="paused-title">Classement en pause</p>
-                        <p className="paused-meta">
-                          {parseInput(pausedSession.inputText).length} éléments · {pausedSession.count} / ~{pausedSession.total} comparaisons
-                        </p>
-                        <p className="paused-date">
-                          {new Date(pausedSession.timestamp).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: "0.6rem" }}>
-                      <button className="btn-gold" onClick={handleResume} style={{ fontSize: "0.82rem", padding: "0.55rem 1.2rem" }}>
-                        ▶ Reprendre
-                      </button>
-                      <button className="btn-ghost" onClick={handleDiscardPaused} style={{ fontSize: "0.75rem", padding: "0.55rem 0.8rem" }}>
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 <div className="hr" style={{ flex: 1 }} />
                 <span style={{ fontSize: "0.65rem", color: "var(--text-faint)", letterSpacing: "0.3em" }}>OU</span>
@@ -702,13 +818,6 @@ export default function App() {
 
               <ListSelector onSelect={handleSelectPrebuilt} />
             </div>
-
-            <button
-              className="admin-link"
-              onClick={() => setPhase("admin")}
-            >
-              ⚙ Administration
-            </button>
           </div>
         )}
 
@@ -891,7 +1000,7 @@ export default function App() {
         {/* ─────────────────────────────── ACTIVITY FEED */}
         {phase === "activity" && (
           <ActivityFeed
-            onBack={() => setPhase("input")}
+            onBack={() => setPhase("home")}
             onChallenge={(ranking) => {
               const items = ranking.items || [];
               setInputText(items.join("\n"));
@@ -907,7 +1016,7 @@ export default function App() {
         {/* ─────────────────────────────── HISTORY */}
         {phase === "history" && (
           <HistoryPanel
-            onBack={() => setPhase("input")}
+            onBack={() => setPhase("home")}
             onRedoRanking={handleRedoRanking}
           />
         )}
