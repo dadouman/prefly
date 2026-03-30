@@ -1,68 +1,18 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "./supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
 import { fetchItemImages, dismissImage, setImageSource } from "./imageSearch";
 import { getImageSourcePref } from "./storage";
 import YouTubePlayer from "./YouTubePlayer";
+import BracketDisplay from "./BracketDisplay";
+import { generateRound0, getTotalRounds, getRoundName } from "./bracketEngine";
 
 // =====================================================================
 // COMMUNITY BRACKET — Tournoi Communautaire
 // Tous les matchs d'un round jouent en même temps.
 // Les votes sont récoltés pendant X heures, puis on avance.
 // =====================================================================
-
-// ─── BRACKET SEEDING (same logic as BracketArena) ───
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function buildSeedOrder(n) {
-  if (n === 1) return [0];
-  if (n === 2) return [0, 1];
-  const prev = buildSeedOrder(n / 2);
-  const result = [];
-  for (const pos of prev) {
-    result.push(pos);
-    result.push(n - 1 - pos);
-  }
-  return result;
-}
-
-function seedBracket(items) {
-  const shuffled = shuffle(items);
-  let n = 1;
-  while (n < shuffled.length) n *= 2;
-  const seedOrder = buildSeedOrder(n);
-  const slots = new Array(n).fill(null);
-  for (let i = 0; i < shuffled.length; i++) {
-    slots[seedOrder[i]] = shuffled[i];
-  }
-  return slots;
-}
-
-function generateRound0(items) {
-  const slots = seedBracket(items);
-  const matches = [];
-  for (let i = 0; i < slots.length; i += 2) {
-    const a = slots[i];
-    const b = slots[i + 1];
-    const isBye = a === null || b === null;
-    matches.push({ item_a: a, item_b: b, is_bye: isBye, winner: isBye ? (a ?? b) : null });
-  }
-  return matches;
-}
-
-function getTotalRounds(itemCount) {
-  let n = 1;
-  while (n < itemCount) n *= 2;
-  return Math.log2(n);
-}
 
 // ─── COUNTDOWN HOOK ───
 function useCountdown(targetDate) {
@@ -90,17 +40,6 @@ function formatCountdown(cd) {
   parts.push(`${String(cd.m).padStart(2, "0")}m`);
   parts.push(`${String(cd.s).padStart(2, "0")}s`);
   return parts.join(" ");
-}
-
-// ─── ROUND NAMES ───
-function getRoundName(roundIdx, totalRounds) {
-  const remaining = totalRounds - roundIdx;
-  if (remaining === 1) return "Finale";
-  if (remaining === 2) return "Demi-finales";
-  if (remaining === 3) return "Quarts de finale";
-  if (remaining === 4) return "Huitièmes de finale";
-  if (remaining === 5) return "Seizièmes de finale";
-  return `Tour ${roundIdx + 1}`;
 }
 
 // =====================================================================
@@ -225,206 +164,6 @@ function CreateBracketForm({ items, listName, listId, format, onCreated, onCance
 }
 
 // =====================================================================
-// DISCOGRAPHY FORMAT HELPER
-// =====================================================================
-function parseDiscographyItem(item) {
-  const first = item.indexOf(" - ");
-  if (first === -1) return { song: item, meta: null };
-  const song = item.substring(0, first);
-  const rest = item.substring(first + 3);
-  const ld = rest.lastIndexOf(" - ");
-  const album = ld !== -1 ? rest.substring(0, ld) : rest;
-  const year = ld !== -1 ? rest.substring(ld + 3) : "";
-  return { song, meta: year ? `${album} · ${year}` : album };
-}
-
-// =====================================================================
-// MATCH VOTE CARD
-// =====================================================================
-function MatchVoteCard({ match, userVote, onVote, disabled, imageMap, onDismissImage, format, showYouTube }) {
-  const totalVotes = match.votes_a + match.votes_b;
-  const pctA = totalVotes > 0 ? Math.round((match.votes_a / totalVotes) * 100) : 50;
-  const pctB = 100 - pctA;
-
-  if (match.is_bye) {
-    return (
-      <div className="cb-match-card cb-bye">
-        <div className="cb-match-bye-label">
-          <span className="cb-match-item-name">{match.item_a || match.item_b}</span>
-          <span className="cb-auto-advance">Qualifié automatiquement</span>
-        </div>
-      </div>
-    );
-  }
-
-  const isFinished = !!match.winner;
-
-  const renderItemLabel = (item) => {
-    if (format === "discography") {
-      const { song, meta } = parseDiscographyItem(item);
-      return (
-        <span className="cb-vote-name">
-          <span className="cb-disco-song">{song}</span>
-          {meta && <span className="cb-disco-meta">{meta}</span>}
-        </span>
-      );
-    }
-    return <span className="cb-vote-name">{item}</span>;
-  };
-
-  const renderThumb = (item) => {
-    const url = imageMap?.get(item);
-    if (!url) return null;
-    return (
-      <span className="cb-vote-thumb-wrap">
-        <img src={url} alt="" className="cb-vote-thumb" />
-        {onDismissImage && (
-          <button className="cb-img-dismiss" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDismissImage(item); }} title="Autre image">✕</button>
-        )}
-      </span>
-    );
-  };
-
-  return (
-    <div className={`cb-match-card${isFinished ? " cb-match-finished" : ""}`}>
-      <div className="cb-match-vs-label">VS</div>
-
-      {/* Item A */}
-      <button
-        className={`cb-vote-btn cb-vote-a${userVote === "a" ? " cb-voted" : ""}${isFinished && match.winner === match.item_a ? " cb-winner" : ""}${isFinished && match.winner !== match.item_a ? " cb-loser" : ""}`}
-        onClick={() => !disabled && onVote(match.id, "a")}
-        disabled={disabled || isFinished}
-      >
-        {renderThumb(match.item_a)}
-        {renderItemLabel(match.item_a)}
-        {showYouTube && <YouTubePlayer item={match.item_a} />}
-        <div className="cb-vote-bar-wrap">
-          <div className="cb-vote-bar cb-bar-a" style={{ width: `${pctA}%` }} />
-        </div>
-        <span className="cb-vote-count">{match.votes_a} vote{match.votes_a !== 1 ? "s" : ""} ({pctA}%)</span>
-      </button>
-
-      {/* Item B */}
-      <button
-        className={`cb-vote-btn cb-vote-b${userVote === "b" ? " cb-voted" : ""}${isFinished && match.winner === match.item_b ? " cb-winner" : ""}${isFinished && match.winner !== match.item_b ? " cb-loser" : ""}`}
-        onClick={() => !disabled && onVote(match.id, "b")}
-        disabled={disabled || isFinished}
-      >
-        {renderThumb(match.item_b)}
-        {renderItemLabel(match.item_b)}
-        {showYouTube && <YouTubePlayer item={match.item_b} />}
-        <div className="cb-vote-bar-wrap">
-          <div className="cb-vote-bar cb-bar-b" style={{ width: `${pctB}%` }} />
-        </div>
-        <span className="cb-vote-count">{match.votes_b} vote{match.votes_b !== 1 ? "s" : ""} ({pctB}%)</span>
-      </button>
-
-      <div className="cb-match-total">{totalVotes} vote{totalVotes !== 1 ? "s" : ""} au total</div>
-    </div>
-  );
-}
-
-// =====================================================================
-// BRACKET OVERVIEW (mini visual of all rounds)
-// =====================================================================
-function BracketOverview({ allMatches, totalRounds, currentRound, imageMap, onScrollToMatch }) {
-  const byRound = useMemo(() => {
-    const map = {};
-    for (const m of allMatches) {
-      if (!map[m.round]) map[m.round] = [];
-      map[m.round].push(m);
-    }
-    // Sort each round by match_index
-    for (const r in map) map[r].sort((a, b) => a.match_index - b.match_index);
-    return map;
-  }, [allMatches]);
-
-  const handleMatchClick = (m) => {
-    if (onScrollToMatch && m.round === currentRound && !m.is_bye) {
-      onScrollToMatch(m.id);
-    } else {
-      const el = document.getElementById(`match-card-${m.id}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  };
-
-  const renderThumb = (item) => {
-    const url = imageMap?.get(item);
-    if (!url) return null;
-    return <img src={url} alt="" className="cb-mini-thumb" />;
-  };
-
-  return (
-    <div className="cb-bracket-overview">
-      <div className="cb-bracket-rounds-scroll">
-        {Array.from({ length: totalRounds }, (_, r) => {
-          const roundMatches = byRound[r] || [];
-          const isActive = r === currentRound;
-          const isDone = r < currentRound;
-          const isFuture = r > currentRound;
-          return (
-            <div key={r} className={`cb-bracket-round${isActive ? " cb-round-active" : isDone ? " cb-round-done" : " cb-round-future"}`}>
-              <div className="cb-bracket-round-label">
-                {getRoundName(r, totalRounds)}
-              </div>
-              <div className="cb-bracket-round-matches">
-                {roundMatches.map(m => (
-                  <div
-                    key={m.id}
-                    className={`cb-mini-match${m.winner ? " resolved" : ""}${m.is_bye ? " bye" : ""}${isActive && !m.is_bye ? " active-match" : ""}`}
-                    onClick={() => handleMatchClick(m)}
-                    role={isActive && !m.is_bye ? "button" : undefined}
-                    tabIndex={isActive && !m.is_bye ? 0 : undefined}
-                  >
-                    <div className="cb-mini-slot">
-                      {renderThumb(m.item_a)}
-                      <span className={`cb-mini-item${m.winner === m.item_a ? " winner" : ""}`}>
-                        {m.item_a || "BYE"}
-                      </span>
-                    </div>
-                    <span className="cb-mini-vs">vs</span>
-                    <div className="cb-mini-slot">
-                      {renderThumb(m.item_b)}
-                      <span className={`cb-mini-item${m.winner === m.item_b ? " winner" : ""}`}>
-                        {m.item_b || "BYE"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {isFuture && roundMatches.length === 0 && (
-                  Array.from({ length: Math.ceil((byRound[0]?.length || 1) / Math.pow(2, r)) }, (_, i) => (
-                    <div key={`tbd-${i}`} className="cb-mini-match future-tbd">
-                      <div className="cb-mini-slot"><span className="cb-mini-item">?</span></div>
-                      <span className="cb-mini-vs">vs</span>
-                      <div className="cb-mini-slot"><span className="cb-mini-item">?</span></div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {/* Champion slot */}
-        <div className="cb-bracket-round cb-round-champion">
-          <div className="cb-bracket-round-label">Champion</div>
-          <div className="cb-bracket-round-matches">
-            <div className="cb-mini-match champion">
-              {allMatches.find(m => m.round === totalRounds - 1)?.winner ? (
-                <span className="cb-champion-name">
-                  👑 {allMatches.find(m => m.round === totalRounds - 1).winner}
-                </span>
-              ) : (
-                <span className="cb-mini-tbd">?</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================================
 // MAIN VIEW — COMMUNITY BRACKET PAGE
 // =====================================================================
 export function CommunityBracketView() {
@@ -443,6 +182,30 @@ export function CommunityBracketView() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [imageMap, setImageMap] = useState(new Map());
   const [showYouTube, setShowYouTube] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+
+  // Auto-select first votable match when data changes
+  useEffect(() => {
+    if (!bracket || !matches.length) return;
+    // If current selection is still valid, keep it
+    if (selectedMatch) {
+      const m = matches.find(x => x.round === selectedMatch.round && x.match_index === selectedMatch.match);
+      if (m && !m.is_bye && !m.winner && m.item_a && m.item_b) return;
+    }
+    // Otherwise pick first votable in current round
+    const first = matches.find(m => m.round === bracket.current_round && !m.is_bye && !m.winner && m.item_a && m.item_b);
+    if (first) {
+      setSelectedMatch({ round: first.round, match: first.match_index });
+    } else {
+      setSelectedMatch(null);
+    }
+  }, [matches, bracket?.current_round]);
+
+  const handleSelectMatch = useCallback((loc) => {
+    const m = matches.find(x => x.round === loc.round && x.match_index === loc.match);
+    if (!m || m.is_bye || !m.item_a || !m.item_b) return;
+    setSelectedMatch(loc);
+  }, [matches]);
 
   // Find voting deadline for current round
   const currentDeadline = useMemo(() => {
@@ -790,7 +553,20 @@ export function CommunityBracketView() {
             <span className="badge">{bracket.items.length} combattants</span>
             <span className="badge">{bracket.total_rounds} tours</span>
           </div>
-          <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={-1} imageMap={imageMap} />
+          <BracketDisplay
+            allMatches={matches}
+            totalRounds={bracket.total_rounds}
+            currentRound={-1}
+            format={bracket?.format}
+            imageMap={imageMap}
+            mode="community"
+            selectedMatch={null}
+            onSelectMatch={() => {}}
+            userVotes={{}}
+            onVote={() => {}}
+            disabled
+            YouTubePlayer={YouTubePlayer}
+          />
           <div className="cb-actions">
             <button className="btn-ghost" onClick={() => navigate("/community")}>← Tous les tournois</button>
           </div>
@@ -942,37 +718,26 @@ export function CommunityBracketView() {
         </div>
       )}
 
-      {/* Current round matches */}
-      <div className="cb-matches-section">
-        <h2 className="cb-section-title">
-          Matchs en cours — {getRoundName(bracket.current_round, bracket.total_rounds)}
-        </h2>
-        <div className="cb-matches-grid">
-          {currentRoundMatches.map(m => (
-            <div key={m.id} id={`match-card-${m.id}`}>
-            <MatchVoteCard
-              match={m}
-              userVote={userVotes[m.id]}
-              onVote={handleVote}
-              disabled={!user || countdown?.expired}
-              imageMap={imageMap}
-              onDismissImage={isCreator ? handleDismissImage : undefined}
-              format={bracket?.format}
-              showYouTube={showYouTube}
-            />
-            </div>
-          ))}
-        </div>
-        {currentRoundMatches.length === 0 && (
-          <p className="cb-no-matches">Aucun match à voter pour ce tour (tous les BYEs ont été résolus).</p>
-        )}
-      </div>
-
-      {/* Bracket overview */}
-      <div className="cb-overview-section">
-        <h2 className="cb-section-title">Tableau du Tournoi</h2>
-        <BracketOverview allMatches={matches} totalRounds={bracket.total_rounds} currentRound={bracket.current_round} imageMap={imageMap} />
-      </div>
+      {/* Unified bracket display */}
+      <BracketDisplay
+        allMatches={matches}
+        currentRound={bracket.current_round}
+        totalRounds={bracket.total_rounds}
+        format={bracket?.format}
+        imageMap={imageMap}
+        onDismissImage={isCreator ? handleDismissImage : undefined}
+        mode="community"
+        selectedMatch={selectedMatch}
+        onSelectMatch={handleSelectMatch}
+        userVotes={userVotes}
+        onVote={handleVote}
+        disabled={!user || countdown?.expired}
+        showYouTube={showYouTube}
+        YouTubePlayer={YouTubePlayer}
+      />
+      {currentRoundMatches.length === 0 && (
+        <p className="cb-no-matches">Aucun match à voter pour ce tour (tous les BYEs ont été résolus).</p>
+      )}
     </div>
     </div>
   );

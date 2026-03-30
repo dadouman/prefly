@@ -1,351 +1,61 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
+import ItemLabel from "./ItemLabel";
+import BracketDisplay from "./BracketDisplay";
+import {
+  buildBracket,
+  propagate,
+  findCurrentMatch,
+  getRoundName,
+  countTotalMatches,
+  countResolvedMatches,
+} from "./bracketEngine";
 
 // =====================================================================
-// BRACKET ENGINE — Single Elimination Tournament
+// BRACKET ARENA — Single Elimination Tournament (Solo Mode)
+// Now uses shared BracketDisplay for visualization
 // =====================================================================
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// Place BYEs optimally: spread them so they don't cluster together.
-// Standard bracket seeding: place BYEs against the last seeds.
-function seedBracket(items) {
-  const shuffled = shuffle(items);
-  let n = 1;
-  while (n < shuffled.length) n *= 2;
-  const numByes = n - shuffled.length;
-
-  // Create seed positions using standard bracket seeding order
-  // This ensures BYEs are spread across the bracket
-  const seedOrder = buildSeedOrder(n);
-
-  // Place real items first, then BYEs
-  const slots = new Array(n).fill(null);
-  for (let i = 0; i < shuffled.length; i++) {
-    slots[seedOrder[i]] = shuffled[i];
-  }
-  // Remaining positions (seedOrder[shuffled.length..n-1]) stay null = BYE
-
-  return slots;
-}
-
-// Build standard tournament seeding order for n slots (power of 2)
-// Uses mirror-based placement so BYEs (last seeds) are spread across the bracket
-// and never paired together.
-function buildSeedOrder(n) {
-  if (n === 1) return [0];
-  if (n === 2) return [0, 1];
-  const prev = buildSeedOrder(n / 2);
-  const result = [];
-  for (const pos of prev) {
-    result.push(pos);           // top of each pair keeps position
-    result.push(n - 1 - pos);   // opponent placed at mirror position
-  }
-  return result;
-}
-
-function buildBracket(items) {
-  const slots = seedBracket(items);
-  const n = slots.length;
-  const totalRounds = Math.log2(n);
-
-  const rounds = [];
-
-  // Round 0 = first matchups
-  const firstRound = [];
-  for (let i = 0; i < n; i += 2) {
-    const a = slots[i];
-    const b = slots[i + 1];
-    const isBye = a === null || b === null;
-    const winner = isBye ? (a ?? b) : null;
-    firstRound.push({ a, b, winner, isBye });
-  }
-  rounds.push(firstRound);
-
-  // Remaining rounds: empty slots
-  for (let r = 1; r < totalRounds; r++) {
-    const prevLen = rounds[r - 1].length;
-    const thisRound = [];
-    for (let i = 0; i < prevLen / 2; i++) {
-      thisRound.push({ a: null, b: null, winner: null, isBye: false });
-    }
-    rounds.push(thisRound);
-  }
-
-  // Propagate all resolved matches
-  propagate(rounds);
-
-  return rounds;
-}
-
-// Propagate winners upward through the bracket, auto-resolving BYEs
-function propagate(rounds) {
-  let changed = true;
-  while (changed) {
-    changed = false;
-
-    // Push winners from resolved matches to next round
-    for (let r = 0; r < rounds.length - 1; r++) {
-      for (let m = 0; m < rounds[r].length; m++) {
-        const match = rounds[r][m];
-        if (match.winner === null) continue;
-
-        const nextIdx = Math.floor(m / 2);
-        const next = rounds[r + 1][nextIdx];
-        const slot = m % 2 === 0 ? "a" : "b";
-
-        if (next[slot] !== match.winner) {
-          next[slot] = match.winner;
-          changed = true;
-        }
-      }
-    }
-
-    // Auto-advance matches where one side can never be filled (double-BYE propagation)
-    for (let r = 1; r < rounds.length; r++) {
-      for (let m = 0; m < rounds[r].length; m++) {
-        const match = rounds[r][m];
-        if (match.winner !== null) continue;
-
-        const srcA = rounds[r - 1][m * 2];
-        const srcB = rounds[r - 1][m * 2 + 1];
-        if (!srcA || !srcB) continue;
-
-        // A source is "done" if it has a winner OR is a resolved BYE (even with null winner)
-        const aDone = srcA.winner !== null || srcA.isBye;
-        const bDone = srcB.winner !== null || srcB.isBye;
-        if (!aDone || !bDone) continue;
-
-        const aWinner = srcA.winner;
-        const bWinner = srcB.winner;
-
-        if (aWinner !== null && match.a !== aWinner) { match.a = aWinner; changed = true; }
-        if (bWinner !== null && match.b !== bWinner) { match.b = bWinner; changed = true; }
-
-        // Auto-advance if only one real competitor exists
-        if (aWinner !== null && bWinner === null) {
-          match.winner = aWinner;
-          match.isBye = true;
-          changed = true;
-        } else if (aWinner === null && bWinner !== null) {
-          match.winner = bWinner;
-          match.isBye = true;
-          changed = true;
-        } else if (aWinner === null && bWinner === null) {
-          // Both sides empty (cascading double BYE) — mark so upstream can detect
-          if (!match.isBye) {
-            match.isBye = true;
-            changed = true;
-          }
-        }
-      }
-    }
-  }
-}
-
-function findCurrentMatch(rounds) {
-  for (let r = 0; r < rounds.length; r++) {
-    for (let m = 0; m < rounds[r].length; m++) {
-      const match = rounds[r][m];
-      if (match.a !== null && match.b !== null && match.winner === null) {
-        return { round: r, match: m };
-      }
-    }
-  }
-  return null;
-}
-
-function getRoundName(roundIdx, totalRounds) {
-  const remaining = totalRounds - roundIdx;
-  if (remaining === 1) return "Finale";
-  if (remaining === 2) return "Demi-finales";
-  if (remaining === 3) return "Quarts de finale";
-  if (remaining === 4) return "Huitièmes de finale";
-  if (remaining === 5) return "Seizièmes de finale";
-  return `Tour ${roundIdx + 1}`;
-}
-
-function countTotalMatches(rounds) {
-  let total = 0;
-  for (const round of rounds) {
-    for (const match of round) {
-      if (!match.isBye) total++;
-    }
-  }
-  return total;
-}
-
-function countResolvedMatches(rounds) {
-  let resolved = 0;
-  for (const round of rounds) {
-    for (const match of round) {
-      if (match.winner !== null && !match.isBye) resolved++;
-    }
-  }
-  return resolved;
-}
-
-// =====================================================================
-// ITEM LABEL (shared format parsing)
-// =====================================================================
-function ItemLabel({ item, format }) {
-  if (!item) return <span className="bracket-bye">BYE</span>;
-  if (format === "discography") {
-    const first = item.indexOf(" - ");
-    if (first !== -1) {
-      const song = item.substring(0, first);
-      const rest = item.substring(first + 3);
-      const ld = rest.lastIndexOf(" - ");
-      const albumYear = ld !== -1
-        ? rest.substring(0, ld) + " · " + rest.substring(ld + 3)
-        : rest;
-      return (
-        <>
-          <span className="disco-song">{song}</span>
-          <span className="disco-meta">{albumYear}</span>
-        </>
-      );
-    }
-  }
-  return <>{item}</>;
-}
-
-// =====================================================================
-// BRACKET VISUAL COMPONENT — with clickable slots for current match
-// =====================================================================
-function BracketView({ rounds, currentMatch, format, imageMap, onPickWinner, chosen }) {
-  const bracketRef = useRef(null);
-  const currentRef = useRef(null);
-  const totalRounds = rounds.length;
-
-  // Auto-scroll to current match
-  useEffect(() => {
-    if (currentRef.current && bracketRef.current) {
-      const container = bracketRef.current;
-      const el = currentRef.current;
-      const elRect = el.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      // Only scroll horizontally if needed
-      if (elRect.left < containerRect.left || elRect.right > containerRect.right) {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-      }
-    }
-  }, [currentMatch]);
-
-  return (
-    <div className="bracket-scroll" ref={bracketRef}>
-      <div className="bracket-container">
-        {rounds.map((round, rIdx) => (
-          <div key={rIdx} className="bracket-round">
-            <div className="bracket-round-label">
-              {getRoundName(rIdx, totalRounds)}
-            </div>
-            <div className="bracket-matches">
-              {round.map((match, mIdx) => {
-                const isCurrent = currentMatch && currentMatch.round === rIdx && currentMatch.match === mIdx;
-                const isResolved = match.winner !== null;
-                const isFuture = !isCurrent && (match.a === null || match.b === null) && !match.isBye;
-
-                return (
-                  <div
-                    key={mIdx}
-                    ref={isCurrent ? currentRef : null}
-                    className={`bracket-match${isCurrent ? " bracket-current" : ""}${isResolved ? " bracket-resolved" : ""}${isFuture ? " bracket-future" : ""}${match.isBye ? " bracket-bye-match" : ""}`}
-                  >
-                    {/* Slot A (top) */}
-                    <div
-                      className={`bracket-slot bracket-top${match.winner === match.a && match.a !== null ? " bracket-winner" : ""}${match.winner === match.b && match.b !== null && match.a !== null ? " bracket-eliminated" : ""}${isCurrent ? " bracket-clickable" : ""}${isCurrent && chosen === "a" ? " bracket-slot-chosen" : ""}${isCurrent && chosen === "b" ? " bracket-slot-unchosen" : ""}`}
-                      onClick={isCurrent && chosen === null ? () => onPickWinner("a") : undefined}
-                      role={isCurrent ? "button" : undefined}
-                      tabIndex={isCurrent ? 0 : undefined}
-                    >
-                      <span className="bracket-seed">{match.a ? "●" : ""}</span>
-                      <span className="bracket-name">
-                        {match.a ? <ItemLabel item={match.a} format={format} imageUrl={imageMap?.get(match.a)} /> : <span className="bracket-tbd">···</span>}
-                      </span>
-                      {match.winner === match.a && match.a !== null && <span className="bracket-check">⚔</span>}
-                    </div>
-                    <div className="bracket-vs-line">
-                      {isCurrent && <span className="bracket-vs-mini">VS</span>}
-                    </div>
-                    {/* Slot B (bottom) */}
-                    <div
-                      className={`bracket-slot bracket-bottom${match.winner === match.b && match.b !== null ? " bracket-winner" : ""}${match.winner === match.a && match.a !== null && match.b !== null ? " bracket-eliminated" : ""}${isCurrent ? " bracket-clickable" : ""}${isCurrent && chosen === "b" ? " bracket-slot-chosen" : ""}${isCurrent && chosen === "a" ? " bracket-slot-unchosen" : ""}`}
-                      onClick={isCurrent && chosen === null ? () => onPickWinner("b") : undefined}
-                      role={isCurrent ? "button" : undefined}
-                      tabIndex={isCurrent ? 0 : undefined}
-                    >
-                      <span className="bracket-seed">{match.b ? "●" : ""}</span>
-                      <span className="bracket-name">
-                        {match.b ? <ItemLabel item={match.b} format={format} imageUrl={imageMap?.get(match.b)} /> : <span className="bracket-tbd">···</span>}
-                      </span>
-                      {match.winner === match.b && match.b !== null && <span className="bracket-check">⚔</span>}
-                    </div>
-                    {isCurrent && <div className="bracket-current-glow" />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Champion */}
-        <div className="bracket-round bracket-champion-round">
-          <div className="bracket-round-label">Champion</div>
-          <div className="bracket-matches">
-            <div className={`bracket-champion-slot${rounds[rounds.length - 1]?.[0]?.winner ? " bracket-crowned" : ""}`}>
-              {rounds[rounds.length - 1]?.[0]?.winner ? (
-                <>
-                  <span className="bracket-crown">👑</span>
-                  <span className="bracket-champion-name">
-                    <ItemLabel item={rounds[rounds.length - 1][0].winner} format={format} imageUrl={imageMap?.get(rounds[rounds.length - 1][0].winner)} />
-                  </span>
-                </>
-              ) : (
-                <span className="bracket-tbd-champion">?</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =====================================================================
-// MAIN BRACKET ARENA COMPONENT
-// =====================================================================
 export default function BracketArena({ items, format, imageMap, onDismissImage, onFinish, onReset }) {
-  const [rounds, setRounds] = useState(() => {
-    const r = buildBracket(items);
-    return r;
-  });
+  const [rounds, setRounds] = useState(() => buildBracket(items));
   const [chosen, setChosen] = useState(null);
   const [champion, setChampion] = useState(null);
   const [shakeScreen, setShakeScreen] = useState(false);
   const [history, setHistory] = useState([]);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
-  const currentMatch = findCurrentMatch(rounds);
   const totalRounds = rounds.length;
   const totalMatches = countTotalMatches(rounds);
   const resolvedMatches = countResolvedMatches(rounds);
 
-  const currentMatchData = currentMatch
-    ? rounds[currentMatch.round][currentMatch.match]
-    : null;
+  // Auto-select the first resolvable match when none is selected or selection becomes invalid
+  useEffect(() => {
+    if (selectedMatch) {
+      const match = rounds[selectedMatch.round]?.[selectedMatch.match];
+      if (match && match.a !== null && match.b !== null && match.winner === null && !match.isBye) {
+        return; // Selection still valid
+      }
+    }
+    const first = findCurrentMatch(rounds);
+    setSelectedMatch(first);
+  }, [rounds, selectedMatch]);
 
-  const currentRoundName = currentMatch
-    ? getRoundName(currentMatch.round, totalRounds)
+  const currentRoundName = selectedMatch
+    ? getRoundName(selectedMatch.round, totalRounds)
     : "";
 
+  const handleSelectMatch = useCallback((loc) => {
+    if (chosen !== null) return;
+    const match = rounds[loc.round]?.[loc.match];
+    if (!match || match.winner !== null || match.isBye) return;
+    if (match.a === null || match.b === null) return;
+    setSelectedMatch(loc);
+  }, [rounds, chosen]);
+
   const handleChoice = useCallback((side) => {
-    if (chosen !== null || !currentMatch) return;
+    if (chosen !== null || !selectedMatch) return;
+    const match = rounds[selectedMatch.round]?.[selectedMatch.match];
+    if (!match || match.winner !== null) return;
+
     setChosen(side);
     setShakeScreen(true);
 
@@ -353,14 +63,14 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
       setShakeScreen(false);
       setHistory(prev => [...prev, rounds]);
       const newRounds = rounds.map(r => r.map(m => ({ ...m })));
-      const match = newRounds[currentMatch.round][currentMatch.match];
-      match.winner = side === "a" ? match.a : match.b;
+      const m = newRounds[selectedMatch.round][selectedMatch.match];
+      m.winner = side === "a" ? m.a : m.b;
 
       propagate(newRounds);
       setRounds(newRounds);
       setChosen(null);
+      setSelectedMatch(null); // Will auto-select next via useEffect
 
-      // Check if tournament is complete
       const next = findCurrentMatch(newRounds);
       if (!next) {
         const finalWinner = newRounds[newRounds.length - 1][0]?.winner;
@@ -374,7 +84,7 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
         }
       }
     }, 500);
-  }, [chosen, currentMatch, rounds, onFinish, items]);
+  }, [chosen, selectedMatch, rounds, onFinish, items]);
 
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
@@ -383,6 +93,7 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
     setRounds(prev);
     setChosen(null);
     setChampion(null);
+    setSelectedMatch(null);
   }, [history]);
 
   // Keyboard shortcuts
@@ -424,7 +135,17 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
 
           <div className="bracket-champion-bracket-preview">
             <h3 className="bracket-recap-title">Tableau Final</h3>
-            <BracketView rounds={rounds} currentMatch={null} format={format} imageMap={imageMap} onPickWinner={() => {}} chosen={null} />
+            <BracketDisplay
+              rounds={rounds}
+              totalRounds={totalRounds}
+              format={format}
+              imageMap={imageMap}
+              mode="solo"
+              selectedMatch={null}
+              onSelectMatch={() => {}}
+              onPickWinner={() => {}}
+              chosen={null}
+            />
           </div>
 
           <div style={{ display: "flex", gap: "0.9rem", justifyContent: "center", flexWrap: "wrap", marginTop: "2rem" }}>
@@ -479,66 +200,16 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
         </div>
       </div>
 
-      {/* Focused duel card (mobile-friendly, also visible on desktop) */}
-      {currentMatchData && (
-        <div className={`bracket-inline-duel${chosen ? " bracket-duel-choosing" : ""}`}>
-          <div className="bracket-duel-question">QUI SURVIT ?</div>
-          <div className="bracket-inline-fight">
-            <button
-              className={`bracket-fighter-compact left${chosen === "a" ? " bracket-victor" : chosen === "b" ? " bracket-fallen" : ""}`}
-              onClick={() => handleChoice("a")}
-            >
-              {imageMap?.get(currentMatchData.a) && (
-                <div className="bracket-fighter-img-wrap">
-                  <img src={imageMap.get(currentMatchData.a)} alt="" className="bracket-fighter-img" />
-                  {onDismissImage && (
-                    <button
-                      className="img-dismiss-btn"
-                      onClick={(e) => { e.stopPropagation(); onDismissImage(currentMatchData.a); }}
-                      title="Image incorrecte ? Essayer la suivante"
-                      aria-label="Changer d'image"
-                    >×</button>
-                  )}
-                </div>
-              )}
-              <span className="bracket-fighter-compact-text">
-                <ItemLabel item={currentMatchData.a} format={format} />
-              </span>
-              <span className="bracket-fighter-compact-hint">←</span>
-            </button>
-            <span className="bracket-inline-vs">VS</span>
-            <button
-              className={`bracket-fighter-compact right${chosen === "b" ? " bracket-victor" : chosen === "a" ? " bracket-fallen" : ""}`}
-              onClick={() => handleChoice("b")}
-            >
-              {imageMap?.get(currentMatchData.b) && (
-                <div className="bracket-fighter-img-wrap">
-                  <img src={imageMap.get(currentMatchData.b)} alt="" className="bracket-fighter-img" />
-                  {onDismissImage && (
-                    <button
-                      className="img-dismiss-btn"
-                      onClick={(e) => { e.stopPropagation(); onDismissImage(currentMatchData.b); }}
-                      title="Image incorrecte ? Essayer la suivante"
-                      aria-label="Changer d'image"
-                    >×</button>
-                  )}
-                </div>
-              )}
-              <span className="bracket-fighter-compact-text">
-                <ItemLabel item={currentMatchData.b} format={format} />
-              </span>
-              <span className="bracket-fighter-compact-hint">→</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bracket view — clickable */}
-      <BracketView
+      {/* Unified bracket display */}
+      <BracketDisplay
         rounds={rounds}
-        currentMatch={currentMatch}
+        totalRounds={totalRounds}
         format={format}
         imageMap={imageMap}
+        onDismissImage={onDismissImage}
+        mode="solo"
+        selectedMatch={selectedMatch}
+        onSelectMatch={handleSelectMatch}
         onPickWinner={handleChoice}
         chosen={chosen}
       />

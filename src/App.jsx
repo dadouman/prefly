@@ -5,6 +5,7 @@ import AdminPanel from "./AdminPanel";
 import ListSelector from "./ListSelector";
 import BracketArena from "./BracketArena";
 import "./BracketArena.css";
+import "./BracketDisplay.css";
 import { savePausedSession, loadPausedSession, clearPausedSession, getImageSourcePref, setImageSourcePref } from "./storage";
 import { fetchItemImages, dismissImage, setImageSource } from "./imageSearch";
 import ShareCard from "./ShareCard";
