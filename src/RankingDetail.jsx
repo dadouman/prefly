@@ -9,10 +9,7 @@ import AttributeEditor from "./AttributeEditor";
 import ComparisonView from "./ComparisonView";
 import SocialCompare from "./SocialCompare";
 import FilterBar from "./FilterBar";
-
-function getName(item) {
-  return typeof item === "string" ? item : item.item || String(item);
-}
+import { getName } from "./utils";
 
 export default function RankingDetail() {
   const { id } = useParams();

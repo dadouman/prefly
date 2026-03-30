@@ -54,7 +54,7 @@ export default function AuthModal({ onClose }) {
   return (
     <div className="auth-overlay" onClick={onClose}>
       <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="auth-close" onClick={onClose}>✕</button>
+        <button className="auth-close" onClick={onClose} aria-label="Fermer">✕</button>
 
         <div className="auth-header">
           <div className="ornament" style={{ marginBottom: "0.5rem", fontSize: "0.8rem" }}>✦ ✦ ✦</div>
@@ -147,8 +147,8 @@ export default function AuthModal({ onClose }) {
 
         {tab === "pseudo" && (
           <p className="auth-hint">
-            Entrez un pseudo pour créer un compte partagé sans mot de passe.
-            Toute personne utilisant le même pseudo accèdera aux mêmes classements.
+            Entrez un pseudo pour continuer en mode simplifié.
+            Vos classements seront sauvegardés localement et liés à cet appareil.
           </p>
         )}
 

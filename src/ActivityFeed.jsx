@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getRecentPublicRankings, getRecentCommunityBrackets } from "./rankingService";
+import { formatRelativeDate, getTopItems } from "./utils";
 
 export default function ActivityFeed({ onBack, onChallenge }) {
   const navigate = useNavigate();
@@ -71,24 +72,7 @@ export default function ActivityFeed({ onBack, onChallenge }) {
     return true;
   });
 
-  const formatDate = (iso) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diff = now - d;
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (mins < 1) return "à l'instant";
-    if (mins < 60) return `il y a ${mins} min`;
-    if (hours < 24) return `il y a ${hours}h`;
-    if (days < 7) return `il y a ${days}j`;
-    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-  };
-
-  const getTopItems = (result) => {
-    if (!result || !Array.isArray(result)) return [];
-    return result.slice(0, 3);
-  };
+  const formatDate = formatRelativeDate;
 
   return (
     <div className="fade" style={{ width: "100%", maxWidth: 720 }}>

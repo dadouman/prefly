@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
 import { useAuth } from "./AuthContext";
-
-function getName(item) {
-  return typeof item === "string" ? item : item.item || String(item);
-}
+import { getName } from "./utils";
 
 function spearmanCorrelation(rank1, rank2) {
   const items = [...new Set([...rank1.keys(), ...rank2.keys()])].filter(

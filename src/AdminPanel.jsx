@@ -6,12 +6,11 @@ import {
   deletePrebuiltList,
   exportListsJSON,
   resetToRemoteLists,
-  isAdminConfigured,
-  setAdminPin,
-  verifyAdminPin,
+  isAdmin,
   toggleListVisibility,
 } from "./storage";
 import { supabase } from "./supabaseClient";
+import { useAuth } from "./AuthContext";
 
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {
@@ -30,90 +29,44 @@ async function fetchWikiAttributes(itemName) {
 }
 
 function AdminLogin({ onLogin, onBack }) {
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
-  const configured = isAdminConfigured();
-  const [confirmPin, setConfirmPin] = useState("");
-  const [step, setStep] = useState(configured ? "login" : "setup");
+  const { user, isAuthenticated } = useAuth();
+  const [checking, setChecking] = useState(true);
+  const [denied, setDenied] = useState(false);
 
-  const handleLogin = () => {
-    if (verifyAdminPin(pin)) {
-      onLogin();
-    } else {
-      setError("Code incorrect");
-      setPin("");
-    }
-  };
-
-  const handleSetup = () => {
-    if (pin.length < 4) {
-      setError("Le code doit contenir au moins 4 caractères");
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setChecking(false);
+      setDenied(true);
       return;
     }
-    if (pin !== confirmPin) {
-      setError("Les codes ne correspondent pas");
-      return;
-    }
-    setAdminPin(pin);
-    onLogin();
-  };
+    isAdmin().then((ok) => {
+      if (ok) onLogin();
+      else setDenied(true);
+      setChecking(false);
+    });
+  }, [isAuthenticated, onLogin]);
+
+  if (checking) {
+    return (
+      <div className="fade" style={{ width: "100%", maxWidth: 420, textAlign: "center", padding: "3rem 0" }}>
+        <p style={{ color: "var(--text-dim)" }}>Vérification des droits…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="fade" style={{ width: "100%", maxWidth: 420 }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <div className="ornament" style={{ marginBottom: "0.7rem" }}>⚙ ⚙ ⚙</div>
         <p className="subtitle" style={{ marginBottom: "0.5rem" }}>Administration</p>
-        <h2 className="logo" style={{ fontSize: "clamp(1.6rem, 5vw, 2.4rem)" }}>
-          {step === "login" ? "Connexion" : "Configuration"}
-        </h2>
+        <h2 className="logo" style={{ fontSize: "clamp(1.6rem, 5vw, 2.4rem)" }}>Accès refusé</h2>
       </div>
-
-      <div className="card" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
-        {step === "setup" && (
-          <p style={{ fontSize: "0.82rem", color: "var(--text-dim)", lineHeight: 1.6, textAlign: "center" }}>
-            Créez un code administrateur pour protéger l'accès.
-          </p>
-        )}
-
-        <div>
-          <span className="label">{step === "login" ? "Code admin" : "Nouveau code"}</span>
-          <input
-            type="password"
-            className="admin-input"
-            value={pin}
-            onChange={(e) => { setPin(e.target.value); setError(""); }}
-            onKeyDown={(e) => e.key === "Enter" && (step === "login" ? handleLogin() : null)}
-            placeholder="••••"
-            autoFocus
-          />
-        </div>
-
-        {step === "setup" && (
-          <div>
-            <span className="label">Confirmer le code</span>
-            <input
-              type="password"
-              className="admin-input"
-              value={confirmPin}
-              onChange={(e) => { setConfirmPin(e.target.value); setError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && handleSetup()}
-              placeholder="••••"
-            />
-          </div>
-        )}
-
-        {error && (
-          <p style={{ fontSize: "0.78rem", color: "#c0392b", textAlign: "center" }}>{error}</p>
-        )}
-
-        <button
-          className="btn-gold"
-          onClick={step === "login" ? handleLogin : handleSetup}
-          style={{ width: "100%" }}
-        >
-          {step === "login" ? "Entrer" : "Créer le code"} →
-        </button>
-
+      <div className="card" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.2rem", textAlign: "center" }}>
+        <p style={{ fontSize: "0.85rem", color: "var(--text-dim)", lineHeight: 1.6 }}>
+          {!isAuthenticated
+            ? "Vous devez être connecté avec un compte administrateur."
+            : "Votre compte n'a pas les droits administrateur."}
+        </p>
         <button className="btn-ghost" onClick={onBack} style={{ width: "100%" }}>
           ← Retour
         </button>
@@ -674,19 +627,20 @@ export default function AdminPanel({ onBack }) {
                     className={`admin-action-btn${list.isPublic ? " active" : ""}`}
                     onClick={() => handleToggleVisibility(list.id, list.isPublic)}
                     title={list.isPublic ? "Rendre privé" : "Rendre public"}
+                    aria-label={list.isPublic ? "Rendre privé" : "Rendre public"}
                     style={list.isPublic ? { color: "#27ae60", borderColor: "#27ae60" } : {}}
                   >
                     {list.isPublic ? "🌐" : "🔒"}
                   </button>
-                  <button className="admin-action-btn edit" onClick={() => setEditing(list.id)} title="Modifier">
+                  <button className="admin-action-btn edit" onClick={() => setEditing(list.id)} title="Modifier" aria-label="Modifier la liste">
                     ✎
                   </button>
                   {confirmDelete === list.id ? (
-                    <button className="admin-action-btn delete confirm" onClick={() => handleDelete(list.id)} title="Confirmer la suppression">
+                    <button className="admin-action-btn delete confirm" onClick={() => handleDelete(list.id)} title="Confirmer la suppression" aria-label="Confirmer la suppression">
                       ✓
                     </button>
                   ) : (
-                    <button className="admin-action-btn delete" onClick={() => setConfirmDelete(list.id)} title="Supprimer">
+                    <button className="admin-action-btn delete" onClick={() => setConfirmDelete(list.id)} title="Supprimer" aria-label="Supprimer la liste">
                       ✕
                     </button>
                   )}

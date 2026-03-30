@@ -90,14 +90,36 @@ export default function CSVImport({ onImported, onClose }) {
 
     if (items.length === 0) throw new Error("Aucun élément trouvé dans le fichier");
 
-    return items;
+    // Sanitize: strip CSV injection formulas (=, +, -, @, \t, \r at start)
+    const sanitized = items.map((item) =>
+      item.replace(/^[\s]*[=+\-@\t\r]+/, "").trim()
+    ).filter(Boolean);
+
+    if (sanitized.length === 0) throw new Error("Aucun élément valide après nettoyage");
+
+    return sanitized;
   };
+
+  const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
     setSuccess(null);
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setError("Fichier trop volumineux (max 1 Mo)");
+      return;
+    }
+
+    // Validate file extension
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "txt"].includes(ext)) {
+      setError("Format non supporté. Utilisez .csv ou .txt");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -143,7 +165,7 @@ export default function CSVImport({ onImported, onClose }) {
   return (
     <div className="csv-import-overlay" onClick={onClose}>
       <div className="csv-import-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="auth-close" onClick={onClose}>✕</button>
+        <button className="auth-close" onClick={onClose} aria-label="Fermer">✕</button>
 
         <div style={{ textAlign: "center", marginBottom: "1.2rem" }}>
           <div className="ornament" style={{ marginBottom: "0.5rem", fontSize: "0.8rem" }}>✦ ✦ ✦</div>

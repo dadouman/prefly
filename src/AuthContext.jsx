@@ -89,23 +89,10 @@ export function AuthProvider({ children }) {
     return { data, error };
   };
 
+  // signInWithPseudo removed — it used a shared hardcoded password.
+  // Pseudo-only mode now delegates to anonymous auth with metadata.
   const signInWithPseudo = async (pseudo) => {
-    if (!supabase) return { error: { message: "Supabase non configuré" } };
-    const fakeEmail = `${pseudo.toLowerCase().replace(/[^a-z0-9]/g, "")}@prefly.app`;
-    const fixedPassword = "prefly-shared-2025";
-    // Try sign in first
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: fakeEmail,
-      password: fixedPassword,
-    });
-    if (!error) return { data, error: null };
-    // If not found, create the account
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: fakeEmail,
-      password: fixedPassword,
-      options: { data: { pseudo } },
-    });
-    return { data: signUpData, error: signUpError };
+    return signInAnonymous(pseudo);
   };
 
   const signOut = async () => {

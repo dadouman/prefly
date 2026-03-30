@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { getUserRankings, deleteRanking } from "./rankingService";
 import CSVImport from "./CSVImport";
+import { formatDateTime, getTopItems } from "./utils";
 
 export default function HistoryPanel({ onBack, onRedoRanking }) {
   const navigate = useNavigate();
@@ -38,15 +39,7 @@ export default function HistoryPanel({ onBack, onRedoRanking }) {
     return true;
   });
 
-  const formatDate = (iso) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  };
-
-  const getTopItems = (result) => {
-    if (!result || !Array.isArray(result)) return [];
-    return result.slice(0, 3);
-  };
+  const formatDate = formatDateTime;
 
   return (
     <div className="fade" style={{ width: "100%", maxWidth: 640 }}>
@@ -148,6 +141,7 @@ export default function HistoryPanel({ onBack, onRedoRanking }) {
                     className="history-delete-btn"
                     onClick={() => handleDelete(r.id)}
                     title="Supprimer ce classement"
+                    aria-label="Supprimer ce classement"
                   >
                     🗑
                   </button>

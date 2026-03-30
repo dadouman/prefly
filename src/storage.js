@@ -8,8 +8,6 @@
 
 import { supabase } from "./supabaseClient";
 
-const ADMIN_KEY = "arena_admin_pin";
-
 // ── Supabase helpers ────────────────────────────────────────────────
 
 // Convert a Supabase row to the app list shape
@@ -202,23 +200,22 @@ export function clearPausedSession() {
   localStorage.removeItem(PAUSED_KEY);
 }
 
-// Admin PIN — simple client-side gate
-export function getAdminPin() {
-  return localStorage.getItem(ADMIN_KEY);
-}
+// ── Admin role check (server-side via Supabase profile) ─────────────
 
-export function setAdminPin(pin) {
-  localStorage.setItem(ADMIN_KEY, pin);
-}
-
-export function verifyAdminPin(pin) {
-  const stored = getAdminPin();
-  if (!stored) return false;
-  return stored === pin;
-}
-
-export function isAdminConfigured() {
-  return !!getAdminPin();
+export async function isAdmin() {
+  if (!supabase) return false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    return data?.role === "admin";
+  } catch {
+    return false;
+  }
 }
 
 // =====================================================================

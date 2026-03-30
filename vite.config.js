@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 
-// YouTube search proxy plugin — server-side scraping, no CORS issues
+// YouTube search proxy plugin — uses YouTube Data API v3
 function ytSearchPlugin() {
   return {
     name: 'yt-search-proxy',
@@ -17,27 +17,23 @@ function ytSearchPlugin() {
           return res.end(JSON.stringify({ error: 'Missing q parameter' }));
         }
 
+        const apiKey = process.env.YOUTUBE_API_KEY;
+        if (!apiKey) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'YOUTUBE_API_KEY not configured' }));
+        }
+
         try {
-          const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-          const response = await fetch(searchUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept-Language': 'en-US,en;q=0.9',
-            },
-          });
-          const html = await response.text();
-          // Extract video IDs from ytInitialData JSON embedded in the page
-          const ids = [];
-          const regex = /\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g;
-          let match;
-          const seen = new Set();
-          while ((match = regex.exec(html)) !== null) {
-            if (!seen.has(match[1])) {
-              seen.add(match[1]);
-              ids.push(match[1]);
-            }
-            if (ids.length >= 5) break;
+          const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=${apiKey}`;
+          const response = await fetch(searchUrl);
+          if (!response.ok) {
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'YouTube API request failed' }));
           }
+          const data = await response.json();
+          const ids = (data.items || [])
+            .map((item) => item.id?.videoId)
+            .filter(Boolean);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ videoIds: ids }));
         } catch (e) {

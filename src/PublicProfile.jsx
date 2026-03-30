@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { useAuth } from "./AuthContext";
-
-function getName(item) {
-  return typeof item === "string" ? item : item.item || String(item);
-}
+import { getName, formatDate } from "./utils";
 
 export default function PublicProfile() {
   const { pseudo } = useParams();
@@ -50,9 +47,7 @@ export default function PublicProfile() {
 
   const isOwnProfile = user?.id === profileData?.id;
 
-  const formatDate = (iso) => {
-    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-  };
+
 
   // Stats
   const totalRankings = rankings.length;

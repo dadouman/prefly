@@ -182,6 +182,7 @@ export default function BracketArena({ items, format, imageMap, onDismissImage, 
               className="bracket-undo-btn"
               onClick={handleUndo}
               title="Revenir au choix précédent (Ctrl+Z)"
+              aria-label="Annuler le dernier choix"
             >↩</button>
           )}
           <button

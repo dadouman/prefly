@@ -671,7 +671,7 @@ export default function App() {
                   <button className="btn-gold" onClick={handleResume} style={{ fontSize: "0.82rem", padding: "0.55rem 1.2rem" }}>
                     ▶ Reprendre
                   </button>
-                  <button className="btn-ghost" onClick={handleDiscardPaused} style={{ fontSize: "0.75rem", padding: "0.55rem 0.8rem" }}>
+                  <button className="btn-ghost" onClick={handleDiscardPaused} style={{ fontSize: "0.75rem", padding: "0.55rem 0.8rem" }} aria-label="Supprimer la session en pause">
                     ✕
                   </button>
                 </div>

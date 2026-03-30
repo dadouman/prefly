@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
-
-function getName(item) {
-  return typeof item === "string" ? item : item.item || String(item);
-}
+import { getName } from "./utils";
 
 // Fetch attributes from Wikipedia/Wikidata for a single item
 async function fetchWikiAttributes(itemName) {

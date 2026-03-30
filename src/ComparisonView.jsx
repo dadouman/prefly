@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { getRankingsForList } from "./rankingService";
+import { formatDate } from "./utils";
 
 export default function ComparisonView({ currentRanking, onClose }) {
   const { user } = useAuth();
@@ -73,11 +74,6 @@ export default function ComparisonView({ currentRanking, onClose }) {
     .filter((d) => d.delta !== null && d.delta !== 0)
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
     .slice(0, 3);
-
-  const formatDate = (iso) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-  };
 
   return (
     <div className="comparison-view fade">

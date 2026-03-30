@@ -581,7 +581,7 @@ export function CommunityBracketView() {
     <div className="cb-page-wrap">
     <div className="cb-page fade">
       <div className="cb-header">
-        <button className="cb-back-btn" onClick={() => navigate("/community")}>←</button>
+        <button className="cb-back-btn" onClick={() => navigate("/community")} aria-label="Retour">←</button>
         <div className="cb-header-info">
           <h1 className="cb-title">{bracket.title}</h1>
           <div className="cb-meta">
@@ -626,7 +626,7 @@ export function CommunityBracketView() {
         <div className="cb-admin-panel">
           <div className="cb-admin-header">
             <span className="cb-admin-title">⚙ Panneau Administrateur</span>
-            <button className="cb-admin-close" onClick={() => { setShowAdminPanel(false); setConfirmCancel(false); }}>✕</button>
+            <button className="cb-admin-close" onClick={() => { setShowAdminPanel(false); setConfirmCancel(false); }} aria-label="Fermer le panneau admin">✕</button>
           </div>
 
           <div className="cb-admin-stats">

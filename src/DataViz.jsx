@@ -15,9 +15,7 @@ const COLORS = [
   "#2980b9", "#27ae60", "#f1c40f", "#c0392b", "#16a085",
 ];
 
-function getName(item) {
-  return typeof item === "string" ? item : item.item || String(item);
-}
+import { getName } from "./utils";
 
 // ─── EVOLUTION CHART ───
 function EvolutionChart({ rankings, currentRanking }) {
